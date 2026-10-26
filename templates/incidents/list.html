@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}Incidents{% endblock %}
+{% block breadcrumb %}<span class="current">Incidents</span>{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Incident Management</h1>
+    <p class="cs-page-subtitle">Track, investigate, contain, and remediate cybersecurity security incidents</p>
+  </div>
+  {% if current_user.is_analyst() %}
+  <a href="{{ url_for('incidents.create') }}" class="btn btn-primary">
+    <i data-lucide="plus-circle"></i> Create Incident
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-body" style="padding: 1rem 1.25rem;">
+    <form method="GET" action="{{ url_for('incidents.list_incidents') }}" class="grid grid-4" style="gap: 1rem; align-items: flex-end;">
+      <div>
+        <label class="cs-label">Search Title</label>
+        <input type="text" name="q" value="{{ q or '' }}" class="cs-input" placeholder="Title, keyword..." />
+      </div>
+      <div>
+        <label class="cs-label">Severity</label>
+        <select name="severity" class="cs-select">
+          <option value="">All Severities</option>
+          <option value="critical" {% if severity == 'critical' %}selected{% endif %}>Critical</option>
+          <option value="high" {% if severity == 'high' %}selected{% endif %}>High</option>
+          <option value="medium" {% if severity == 'medium' %}selected{% endif %}>Medium</option>
+          <option value="low" {% if severity == 'low' %}selected{% endif %}>Low</option>
+        </select>
+      </div>
+      <div>
+        <label class="cs-label">Status</label>
+        <select name="status" class="cs-select">
+          <option value="">All Statuses</option>
+          {% for s in statuses %}
+          <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s | title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="submit" class="btn btn-primary" style="flex: 1;"><i data-lucide="filter"></i> Filter</button>
+        <a href="{{ url_for('incidents.list_incidents') }}" class="btn btn-outline"><i data-lucide="rotate-ccw"></i></a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Incidents Table -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i data-lucide="flame"></i> Active Incidents
+      <span class="badge badge-muted" style="margin-left: 0.5rem;">{{ pagination.total }} total</span>
+    </h3>
+  </div>
+  <div class="table-responsive">
+    <table class="cs-table">
+      <thead>
+        <tr>
+          <th>Incident ID</th>
+          <th>Severity</th>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Assigned Analyst</th>
+          <th>Created</th>
+          <th style="text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if incidents %}
+          {% for inc in incidents %}
+          <tr>
+            <td>
+              <a href="{{ url_for('incidents.detail', iid=inc.id) }}" style="font-weight: 600; color: var(--accent-cyan); font-family: var(--font-mono);">
+                {{ inc.incident_id }}
+              </a>
+            </td>
+            <td>
+              <span class="badge badge-{{ inc.severity }}">{{ inc.severity | upper }}</span>
+            </td>
+            <td>
+              <div style="font-weight: 500; color: var(--text-primary);">{{ inc.title }}</div>
+              <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                {{ inc.events.count() }} events &bull; {{ inc.alerts.count() }} alerts &bull; {{ inc.evidence_items.count() }} evidence
+              </div>
+            </td>
+            <td>
+              {% if inc.status == 'open' %}
+              <span class="badge badge-critical">OPEN</span>
+              {% elif inc.status == 'investigating' %}
+              <span class="badge badge-high">INVESTIGATING</span>
+              {% elif inc.status == 'contained' %}
+              <span class="badge badge-warning">CONTAINED</span>
+              {% elif inc.status in ['resolved', 'closed'] %}
+              <span class="badge badge-low">{{ inc.status | upper }}</span>
+              {% else %}
+              <span class="badge badge-muted">{{ inc.status | upper }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if inc.assigned_analyst %}
+              <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                <i data-lucide="user" style="width: 14px; height: 14px;"></i> {{ inc.assigned_analyst.username }}
+              </div>
+              {% else %}
+              <span class="text-muted" style="font-size: 0.85rem;">Unassigned</span>
+              {% endif %}
+            </td>
+            <td style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">
+              {{ inc.created_at.strftime('%Y-%m-%d %H:%M') }}
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+              <a href="{{ url_for('incidents.detail', iid=inc.id) }}" class="btn btn-outline btn-xs">
+                <i data-lucide="eye"></i> View Case
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 3rem 1rem; color: var(--text-secondary);">
+              <i data-lucide="shield-check" style="width: 36px; height: 36px; stroke: var(--accent-green); margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto;"></i>
+              No incidents found.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem;">
+    <div style="font-size: 0.85rem; color: var(--text-secondary);">
+      Showing page {{ pagination.page }} of {{ pagination.pages }}
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      {% if pagination.has_prev %}
+      <a href="{{ url_for('incidents.list_incidents', page=pagination.prev_num, q=q, severity=severity, status=status) }}" class="btn btn-outline btn-sm">Previous</a>
+      {% endif %}
+      {% if pagination.has_next %}
+      <a href="{{ url_for('incidents.list_incidents', page=pagination.next_num, q=q, severity=severity, status=status) }}" class="btn btn-outline btn-sm">Next</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}Event #{{ event.id }}{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('events.list_events') }}">Security Events</a>
+<span class="separator">/</span>
+<span class="current">Event #{{ event.id }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+      <h1 class="cs-page-title" style="margin-bottom: 0;">Event #{{ event.id }}</h1>
+      <span class="badge badge-{{ event.severity }}">{{ event.severity | upper }}</span>
+      <span class="badge badge-muted">{{ event.category }}</span>
+      {% if event.is_flagged %}
+      <span class="badge badge-high"><i data-lucide="flag" style="width:12px;height:12px;"></i> Flagged</span>
+      {% endif %}
+    </div>
+    <p class="cs-page-subtitle">{{ event.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }} &bull; Source: <code>{{ event.source_ip }}</code></p>
+  </div>
+  <div style="display: flex; gap: 0.75rem;">
+    {% if related_alert %}
+    <a href="{{ url_for('alerts.detail', aid=related_alert.id) }}" class="btn btn-primary">
+      <i data-lucide="bell"></i> View Alert #{{ related_alert.id }}
+    </a>
+    {% endif %}
+    {% if related_incident %}
+    <a href="{{ url_for('incidents.detail', inc_id=related_incident.id) }}" class="btn btn-outline">
+      <i data-lucide="flame"></i> View Incident {{ related_incident.incident_number }}
+    </a>
+    {% endif %}
+    <a href="{{ url_for('events.list_events') }}" class="btn btn-outline">
+      <i data-lucide="arrow-left"></i> Back to Events
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-3" style="margin-bottom: 1.5rem;">
+  <div class="card col-span-2">
+    <div class="card-header">
+      <h3 class="card-title"><i data-lucide="info"></i> Event Summary & Details</h3>
+    </div>
+    <div class="card-body">
+      <div style="margin-bottom: 1.25rem;">
+        <label class="cs-label">Summary / Description</label>
+        <div style="font-size: 1.05rem; font-weight: 500; color: var(--text-primary); margin-top: 0.25rem;">
+          {{ event.description or event.summary }}
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="gap: 1rem; margin-bottom: 1.25rem;">
+        <div>
+          <label class="cs-label">Event Type</label>
+          <div><code>{{ event.event_type }}</code></div>
+        </div>
+        <div>
+          <label class="cs-label">Category</label>
+          <div><span class="badge badge-muted">{{ event.category }}</span></div>
+        </div>
+        <div>
+          <label class="cs-label">Source IP Address</label>
+          <div><code>{{ event.source_ip }}</code></div>
+        </div>
+        <div>
+          <label class="cs-label">Destination IP / Resource</label>
+          <div><code>{{ event.destination_ip or event.resource_id or 'Local Simulation Target' }}</code></div>
+        </div>
+        <div>
+          <label class="cs-label">Detection Signature</label>
+          <div><code>{{ event.signature or 'N/A' }}</code></div>
+        </div>
+        <div>
+          <label class="cs-label">Attack Vector / MITRE ATT&CK</label>
+          <div>
+            {% if event.mitre_technique %}
+            <span class="badge badge-high">{{ event.mitre_technique }}</span>
+            {% else %}
+            <span class="text-muted">None specified</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if event.payload or event.raw_log or event.request_data %}
+      <div style="margin-top: 1.25rem;">
+        <label class="cs-label">Raw Log / Captured Payload</label>
+        <div class="code-block" style="margin-top: 0.5rem; max-height: 250px; overflow-y: auto;">
+          <pre><code>{{ event.payload or event.raw_log or event.request_data }}</code></pre>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title"><i data-lucide="shield"></i> Security Metadata</h3>
+    </div>
+    <div class="card-body">
+      <div style="margin-bottom: 1rem;">
+        <label class="cs-label">Correlation Status</label>
+        <div>
+          {% if related_incident %}
+          <span class="badge badge-critical"><i data-lucide="flame" style="width:12px;height:12px;"></i> Linked to {{ related_incident.incident_number }}</span>
+          {% elif related_alert %}
+          <span class="badge badge-warning"><i data-lucide="bell" style="width:12px;height:12px;"></i> Alert Generated</span>
+          {% else %}
+          <span class="badge badge-low">Logged (Uncorrelated)</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label class="cs-label">Timestamp</label>
+        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+          {{ event.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+        </div>
+      </div>
+
+      {% if event.user_agent %}
+      <div style="margin-bottom: 1rem;">
+        <label class="cs-label">User-Agent</label>
+        <div style="font-size: 0.8rem; word-break: break-all; color: var(--text-secondary);">
+          {{ event.user_agent }}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if event.http_status %}
+      <div style="margin-bottom: 1rem;">
+        <label class="cs-label">HTTP Status Code</label>
+        <div><span class="badge badge-muted">{{ event.http_status }}</span></div>
+      </div>
+      {% endif %}
+
+      <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
+        <label class="cs-label">Quick Actions</label>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+          <a href="{{ url_for('forensics.overview') }}?q={{ event.source_ip }}" class="btn btn-outline btn-sm">
+            <i data-lucide="search"></i> Correlate in Forensics
+          </a>
+          <a href="{{ url_for('response.overview') }}?ip={{ event.source_ip }}" class="btn btn-outline btn-sm">
+            <i data-lucide="shield-alert"></i> Containment Options
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

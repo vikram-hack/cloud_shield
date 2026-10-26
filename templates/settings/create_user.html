@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Provision User Account{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('settings.overview') }}">Settings</a>
+<span class="separator">/</span>
+<span class="current">Create User</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Provision New User Account</h1>
+    <p class="cs-page-subtitle">Assign role-based access control (RBAC) privileges and authentication credentials</p>
+  </div>
+  <a href="{{ url_for('settings.overview') }}" class="btn btn-outline">
+    <i data-lucide="arrow-left"></i> Back to Settings
+  </a>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+  <div class="card-header">
+    <h3 class="card-title"><i data-lucide="user-plus"></i> Account Specifications</h3>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('settings.create_user') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div class="cs-form-group">
+        <label class="cs-label" for="username">Username *</label>
+        <input type="text" id="username" name="username" class="cs-input" placeholder="e.g. jsmith" required />
+      </div>
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="email">Email Address *</label>
+        <input type="email" id="email" name="email" class="cs-input" placeholder="e.g. jsmith@soc.cloudshield.local" required />
+      </div>
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="password">Initial Password * (minimum 12 characters)</label>
+        <input type="password" id="password" name="password" class="cs-input" placeholder="At least 12 characters..." required />
+      </div>
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="role">Assigned RBAC Role *</label>
+        <select id="role" name="role" class="cs-select" required>
+          <option value="viewer">Viewer (Read-only observation)</option>
+          <option value="analyst" selected>Security Analyst (Triage, alerts, cases, forensics)</option>
+          <option value="admin">Administrator (Full operational control)</option>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+        <a href="{{ url_for('settings.overview') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> Create User Account</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

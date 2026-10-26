@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% block title %}Alert {{ alert.alert_id or ('#' ~ alert.id) }}{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('alerts.list_alerts') }}">Security Alerts</a>
+<span class="separator">/</span>
+<span class="current">{{ alert.alert_id or ('#' ~ alert.id) }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+      <h1 class="cs-page-title" style="margin-bottom: 0;">{{ alert.title }}</h1>
+      <span class="badge badge-{{ alert.severity }}">{{ alert.severity | upper }}</span>
+      <span class="badge badge-muted">{{ alert.status | upper }}</span>
+    </div>
+    <p class="cs-page-subtitle">Alert ID: <code>{{ alert.alert_id or alert.id }}</code> &bull; Created: {{ alert.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</p>
+  </div>
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    {% if current_user.is_analyst() %}
+      {% if alert.status == 'new' %}
+      <form method="POST" action="{{ url_for('alerts.acknowledge', aid=alert.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <button type="submit" class="btn btn-warning"><i data-lucide="check"></i> Acknowledge</button>
+      </form>
+      {% endif %}
+      {% if alert.status in ['new', 'acknowledged'] %}
+      <form method="POST" action="{{ url_for('alerts.start_investigate', aid=alert.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <button type="submit" class="btn btn-primary"><i data-lucide="search"></i> Investigate</button>
+      </form>
+      {% endif %}
+    {% endif %}
+    <a href="{{ url_for('alerts.list_alerts') }}" class="btn btn-outline"><i data-lucide="arrow-left"></i> Back to Queue</a>
+  </div>
+</div>
+
+<div class="grid grid-3" style="gap: 1.5rem;">
+  <!-- Main Details (2 cols) -->
+  <div class="col-span-2" style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <!-- Alert Details Card -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="info"></i> Alert Context & Details</h3>
+      </div>
+      <div class="card-body">
+        <div style="margin-bottom: 1.5rem;">
+          <label class="cs-label">Description</label>
+          <div style="color: var(--text-primary); font-size: 0.95rem; line-height: 1.5;">
+            {{ alert.description or 'No detailed description available.' }}
+          </div>
+        </div>
+
+        <div class="grid grid-2" style="gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label class="cs-label">Category</label>
+            <div><span class="badge badge-muted">{{ alert.category }}</span></div>
+          </div>
+          <div>
+            <label class="cs-label">MITRE ATT&CK Technique</label>
+            <div>
+              {% if alert.mitre_technique %}
+              <span class="badge badge-high">{{ alert.mitre_technique }}</span>
+              {% else %}
+              <span class="text-muted">Unmapped</span>
+              {% endif %}
+            </div>
+          </div>
+          <div>
+            <label class="cs-label">Source IP</label>
+            <div><code>{{ alert.source_ip or 'N/A' }}</code></div>
+          </div>
+          <div>
+            <label class="cs-label">Target Resource / Endpoint</label>
+            <div><code>{{ alert.target_resource or 'Simulation Host' }}</code></div>
+          </div>
+        </div>
+
+        {% if alert.status == 'false_positive' and alert.false_positive_reason %}
+        <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--accent-red); padding: 0.75rem 1rem; border-radius: 4px; margin-top: 1rem;">
+          <strong style="color: var(--accent-red); font-size: 0.85rem;">Marked False Positive:</strong>
+          <div style="font-size: 0.85rem; color: var(--text-primary); margin-top: 0.25rem;">{{ alert.false_positive_reason }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Underlying Security Event Card -->
+    {% if event %}
+    <div class="card">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title"><i data-lucide="activity"></i> Triggering Security Event #{{ event.id }}</h3>
+        <a href="{{ url_for('events.detail', eid=event.id) }}" class="btn btn-outline btn-xs">Full Event Record &rarr;</a>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-2" style="gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label class="cs-label">Event Type</label>
+            <div><code>{{ event.event_type }}</code></div>
+          </div>
+          <div>
+            <label class="cs-label">Timestamp</label>
+            <div style="font-size: 0.85rem;">{{ event.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }}</div>
+          </div>
+        </div>
+        {% if event.payload or event.raw_log %}
+        <label class="cs-label">Raw Captured Payload</label>
+        <div class="code-block" style="margin-top: 0.25rem; max-height: 180px; overflow-y: auto;">
+          <pre><code>{{ event.payload or event.raw_log }}</code></pre>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Investigation Notes & Triage Log -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="file-text"></i> Analyst Notes & Activity Log</h3>
+      </div>
+      <div class="card-body">
+        {% if alert.notes %}
+        <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; white-space: pre-wrap; font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.6; margin-bottom: 1.25rem; max-height: 250px; overflow-y: auto;">
+{{ alert.notes }}
+        </div>
+        {% else %}
+        <p class="text-muted" style="margin-bottom: 1.25rem; font-size: 0.9rem;">No analyst notes recorded yet.</p>
+        {% endif %}
+
+        {% if current_user.is_analyst() %}
+        <form method="POST" action="{{ url_for('alerts.add_note', aid=alert.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <label class="cs-label">Add Note</label>
+          <textarea name="note" class="cs-textarea" rows="3" placeholder="Document triage findings, evidence IDs, or notes..." required style="margin-bottom: 0.75rem;"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> Append Note</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Actions & Linkages (1 col) -->
+  <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <!-- Assignment Card -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="user-check"></i> Triage Assignment</h3>
+      </div>
+      <div class="card-body">
+        {% if current_user.is_analyst() %}
+        <form method="POST" action="{{ url_for('alerts.assign', aid=alert.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <div class="cs-form-group">
+            <label class="cs-label">Assigned Analyst</label>
+            <select name="analyst_id" class="cs-select">
+              <option value="">Unassigned</option>
+              {% for u in analysts %}
+              <option value="{{ u.id }}" {% if alert.assigned_to == u.id %}selected{% endif %}>{{ u.username }} ({{ u.role }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="cs-form-group">
+            <label class="cs-label">Link to Incident</label>
+            <select name="incident_id" class="cs-select">
+              <option value="">No Incident Linked</option>
+              {% for inc in incidents %}
+              <option value="{{ inc.id }}" {% if alert.incident_id == inc.id %}selected{% endif %}>{{ inc.incident_number or inc.incident_id }} - {{ inc.title[:25] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-outline btn-sm" style="width: 100%;"><i data-lucide="save"></i> Update Assignment</button>
+        </form>
+        {% else %}
+        <p class="text-muted" style="font-size: 0.85rem;">Assigned Analyst: <strong>{{ alert.assigned_analyst.username if alert.assigned_analyst else 'Unassigned' }}</strong></p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Resolution & Actions -->
+    {% if current_user.is_analyst() %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="check-square"></i> Incident & Resolution</h3>
+      </div>
+      <div class="card-body" style="display: flex; flex-direction: column; gap: 1rem;">
+        {% if not alert.incident_id %}
+        <div>
+          <label class="cs-label">Escalate</label>
+          <a href="{{ url_for('incidents.create') }}?alert_id={{ alert.id }}" class="btn btn-danger btn-sm" style="width: 100%;">
+            <i data-lucide="flame"></i> Escalate to New Incident
+          </a>
+        </div>
+        {% else %}
+        <div>
+          <label class="cs-label">Active Incident</label>
+          <a href="{{ url_for('incidents.detail', iid=alert.incident_id) }}" class="btn btn-outline btn-sm" style="width: 100%;">
+            <i data-lucide="link"></i> Open Incident #{{ alert.incident_id }}
+          </a>
+        </div>
+        {% endif %}
+
+        {% if alert.status != 'resolved' %}
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+          <label class="cs-label">Mark as Resolved</label>
+          <form method="POST" action="{{ url_for('alerts.resolve', aid=alert.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <input type="text" name="note" class="cs-input" placeholder="Resolution summary..." style="margin-bottom: 0.5rem;" />
+            <button type="submit" class="btn btn-success btn-sm" style="width: 100%;"><i data-lucide="check-circle"></i> Resolve Alert</button>
+          </form>
+        </div>
+        {% endif %}
+
+        {% if alert.status != 'false_positive' %}
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+          <label class="cs-label">False Positive Triage</label>
+          <form method="POST" action="{{ url_for('alerts.false_positive', aid=alert.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <input type="text" name="reason" class="cs-input" placeholder="Reason (e.g. approved scan)..." required style="margin-bottom: 0.5rem;" />
+            <button type="submit" class="btn btn-outline btn-sm" style="width: 100%;"><i data-lucide="shield-x"></i> Mark False Positive</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Containment Quick Links -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="zap"></i> Quick Playbook</h3>
+      </div>
+      <div class="card-body">
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          {% if alert.source_ip %}
+          <a href="{{ url_for('response.overview') }}?ip={{ alert.source_ip }}" class="btn btn-outline btn-sm" style="text-align: left;">
+            <i data-lucide="shield-alert"></i> Isolate IP: {{ alert.source_ip }}
+          </a>
+          <a href="{{ url_for('forensics.overview') }}?q={{ alert.source_ip }}" class="btn btn-outline btn-sm" style="text-align: left;">
+            <i data-lucide="search"></i> Correlate Forensic Timeline
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

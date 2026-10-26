@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}{% if resource %}Edit{% else %}Add{% endif %} Resource{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('resources.list_resources') }}">Cloud Resources</a>
+<span class="separator">/</span>
+<span class="current">{% if resource %}Edit {{ resource.name }}{% else %}Add Resource{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">{% if resource %}Edit Resource{% else %}Add Simulated Resource{% endif %}</h1>
+    <div class="cs-page-subtitle">All resources are simulated locally — no real cloud connections are made.</div>
+  </div>
+</div>
+
+<div class="cs-card" style="max-width:660px">
+  <form method="POST" action="{% if resource %}{{ url_for('resources.edit', rid=resource.id) }}{% else %}{{ url_for('resources.create') }}{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    {% if resource %}
+    <input type="hidden" name="resource_type" value="{{ resource.resource_type }}" />
+    {% endif %}
+
+    <div class="cs-form-group">
+      <label class="cs-label" for="name">Resource Name *</label>
+      <input class="cs-input" id="name" name="name" required
+             value="{{ resource.name if resource else '' }}" placeholder="e.g. web-server-prod" />
+    </div>
+
+    <div class="cs-form-group">
+      <label class="cs-label" for="resource_type">Resource Type *</label>
+      <select class="cs-select" id="resource_type" name="resource_type" {% if resource %}disabled{% endif %}>
+        {% for t in resource_types %}
+        <option value="{{ t }}" {% if (resource and resource.resource_type == t) %}selected{% endif %}>{{ t | replace('_',' ') | title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="cs-form-group">
+      <label class="cs-label" for="owner">Owner / Team</label>
+      <input class="cs-input" id="owner" name="owner"
+             value="{{ resource.owner if resource else '' }}" placeholder="e.g. ops-team" />
+    </div>
+
+    <div class="cs-form-group">
+      <div class="cs-label mb-12">Security Settings</div>
+      <div class="d-flex" style="flex-direction:column; gap:12px">
+        <label class="cs-checkbox-group">
+          <input class="cs-checkbox" type="checkbox" name="is_public" {% if resource and resource.is_public %}checked{% endif %} />
+          <span>Publicly accessible</span>
+        </label>
+        <label class="cs-checkbox-group">
+          <input class="cs-checkbox" type="checkbox" name="encryption_enabled" {% if not resource or resource.encryption_enabled %}checked{% endif %} />
+          <span>Encryption enabled</span>
+        </label>
+        <label class="cs-checkbox-group">
+          <input class="cs-checkbox" type="checkbox" name="logging_enabled" {% if not resource or resource.logging_enabled %}checked{% endif %} />
+          <span>Logging enabled</span>
+        </label>
+        <label class="cs-checkbox-group">
+          <input class="cs-checkbox" type="checkbox" name="ssh_open_to_all" {% if config and config.get('ssh_open_to_all') %}checked{% endif %} />
+          <span>SSH open to all IPs (0.0.0.0/0)</span>
+        </label>
+        <label class="cs-checkbox-group">
+          <input class="cs-checkbox" type="checkbox" name="allow_all_inbound" {% if config and config.get('allow_all_inbound') %}checked{% endif %} />
+          <span>Allow all inbound traffic</span>
+        </label>
+        <label class="cs-checkbox-group">
+          <input class="cs-checkbox" type="checkbox" name="versioning_enabled" {% if config and config.get('versioning_enabled') %}checked{% endif %} />
+          <span>Versioning enabled (buckets)</span>
+        </label>
+        <label class="cs-checkbox-group">
+          <input class="cs-checkbox" type="checkbox" name="wildcard_permissions" {% if config and config.get('wildcard_permissions') %}checked{% endif %} />
+          <span>Wildcard (*) permissions (IAM)</span>
+        </label>
+        <label class="cs-checkbox-group">
+          <input class="cs-checkbox" type="checkbox" name="mfa_required" {% if config and config.get('mfa_required') %}checked{% endif %} />
+          <span>MFA required (IAM)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="d-flex gap-12 mt-24" style="gap: 12px; margin-top: 24px;">
+      <button class="cs-btn cs-btn-primary btn btn-primary" type="submit">
+        <i data-lucide="save"></i> {% if resource %}Save Changes{% else %}Create Resource{% endif %}
+      </button>
+      <a href="{{ url_for('resources.list_resources') }}" class="cs-btn cs-btn-secondary btn btn-outline">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

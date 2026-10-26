@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}CloudShield{% endblock %} — Security Operations</title>
+  <meta name="description" content="CloudShield — Local Cloud Security Simulation and Digital Forensics Platform" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- CloudShield CSS (DarkMinimal Theme) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/cloudshield.css') }}?v=dm2" />
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="cs-body">
+
+{% if current_user.is_authenticated %}
+<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+<nav class="cs-sidebar" id="sidebar">
+  <div class="cs-sidebar-header">
+    <div class="cs-logo">
+      <div class="cs-logo-icon">
+        <i data-lucide="shield-check"></i>
+      </div>
+      <div class="cs-logo-text">
+        <span class="cs-logo-name">CloudShield</span>
+        <span class="cs-logo-env">{{ app_env }}</span>
+      </div>
+    </div>
+    <button class="cs-sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+      <i data-lucide="panel-left-close"></i>
+    </button>
+  </div>
+
+  <!-- Scrollable nav area -->
+  <div class="cs-sidebar-scroll">
+
+  <div class="cs-nav-section-label">MONITORING</div>
+  <ul class="cs-nav">
+    <li class="cs-nav-item">
+      <a href="{{ url_for('dashboard.overview') }}" class="cs-nav-link {% if request.endpoint == 'dashboard.overview' %}active{% endif %}">
+        <i data-lucide="layout-dashboard"></i><span>Overview</span>
+      </a>
+    </li>
+    <li class="cs-nav-item">
+      <a href="{{ url_for('resources.list_resources') }}" class="cs-nav-link {% if 'resources.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="server"></i><span>Cloud Resources</span>
+      </a>
+    </li>
+    <li class="cs-nav-item">
+      <a href="{{ url_for('posture.overview') }}" class="cs-nav-link {% if 'posture.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="shield-alert"></i><span>Security Posture</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="cs-nav-section-label">DETECTION</div>
+  <ul class="cs-nav">
+    <li class="cs-nav-item">
+      <a href="{{ url_for('events.list_events') }}" class="cs-nav-link {% if 'events.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="activity"></i><span>Security Events</span>
+      </a>
+    </li>
+    <li class="cs-nav-item">
+      <a href="{{ url_for('alerts.list_alerts') }}" class="cs-nav-link {% if 'alerts.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="bell-ring"></i>
+        <span>Alerts</span>
+        {% if open_alerts_count > 0 %}
+        <span class="cs-badge-count">{{ open_alerts_count }}</span>
+        {% endif %}
+      </a>
+    </li>
+    <li class="cs-nav-item">
+      <a href="{{ url_for('incidents.list_incidents') }}" class="cs-nav-link {% if 'incidents.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="siren"></i><span>Incidents</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="cs-nav-section-label">FORENSICS</div>
+  <ul class="cs-nav">
+    <li class="cs-nav-item">
+      <a href="{{ url_for('forensics.overview') }}" class="cs-nav-link {% if 'forensics.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="search-code"></i><span>Digital Forensics</span>
+      </a>
+    </li>
+    <li class="cs-nav-item">
+      <a href="{{ url_for('evidence.list_evidence') }}" class="cs-nav-link {% if 'evidence.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="archive"></i><span>Evidence Vault</span>
+      </a>
+    </li>
+    <li class="cs-nav-item">
+      <a href="{{ url_for('response.overview') }}" class="cs-nav-link {% if 'response.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="zap"></i><span>Auto Response</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="cs-nav-section-label">MANAGEMENT</div>
+  <ul class="cs-nav">
+    <li class="cs-nav-item">
+      <a href="{{ url_for('reports.overview') }}" class="cs-nav-link {% if 'reports.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="file-text"></i><span>Reports</span>
+      </a>
+    </li>
+    {% if current_user.is_admin() %}
+    <li class="cs-nav-item">
+      <a href="{{ url_for('audit.list_logs') }}" class="cs-nav-link {% if 'audit.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="scroll-text"></i><span>Audit Logs</span>
+      </a>
+    </li>
+    <li class="cs-nav-item">
+      <a href="{{ url_for('settings.overview') }}" class="cs-nav-link {% if 'settings.' in (request.endpoint or '') %}active{% endif %}">
+        <i data-lucide="settings"></i><span>Settings</span>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+
+  </div><!-- end cs-sidebar-scroll -->
+
+  <!-- Sidebar Footer -->
+  <div class="cs-sidebar-footer">
+    <div class="cs-user-card">
+      <div class="cs-user-avatar">{{ current_user.username[0].upper() }}</div>
+      <div class="cs-user-info">
+        <div class="cs-user-name">{{ current_user.username }}</div>
+        <div class="cs-user-role">{{ current_user.role | title }}</div>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="cs-logout-btn" title="Logout">
+        <i data-lucide="log-out"></i>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile sidebar backdrop -->
+<div class="cs-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+<!-- ── Top Bar ──────────────────────────────────────────────────────────── -->
+<header class="cs-topbar" id="topbar">
+  <div class="cs-topbar-left">
+    <button class="cs-menu-btn" id="menuBtn">
+      <i data-lucide="menu"></i>
+    </button>
+    <div class="cs-breadcrumb">
+      {% block breadcrumb %}{% endblock %}
+    </div>
+  </div>
+  <div class="cs-topbar-right">
+    <div class="cs-env-badge">
+      <i data-lucide="flask-conical"></i>
+      LOCAL LAB — SIMULATED ENVIRONMENT
+    </div>
+    <a href="{{ url_for('alerts.list_alerts') }}" class="cs-notif-btn" title="Alerts">
+      <i data-lucide="bell"></i>
+      {% if open_alerts_count > 0 %}
+      <span class="cs-notif-dot"></span>
+      {% endif %}
+    </a>
+    <a href="{{ url_for('settings.profile') }}" class="cs-user-menu-btn" title="Profile">
+      <span class="cs-user-avatar-sm">{{ current_user.username[0].upper() }}</span>
+    </a>
+  </div>
+</header>
+
+<!-- ── Main Content ─────────────────────────────────────────────────────── -->
+<main class="cs-main" id="mainContent">
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="cs-flash-container">
+      {% for category, message in messages %}
+      <div class="cs-flash cs-flash-{{ category }}" role="alert">
+        <i data-lucide="{% if category == 'success' %}check-circle{% elif category == 'danger' %}alert-circle{% elif category == 'warning' %}alert-triangle{% else %}info{% endif %}"></i>
+        <span>{{ message }}</span>
+        <button class="cs-flash-close" onclick="this.parentElement.remove()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+{% else %}
+<!-- Unauthenticated layout -->
+<div class="cs-auth-wrapper">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="cs-flash-container cs-flash-top">
+      {% for category, message in messages %}
+      <div class="cs-flash cs-flash-{{ category }}" role="alert">
+        <i data-lucide="{% if category == 'success' %}check-circle{% elif category == 'danger' %}alert-circle{% else %}info{% endif %}"></i>
+        <span>{{ message }}</span>
+        <button class="cs-flash-close" onclick="this.parentElement.remove()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+  {% block auth_content %}{% endblock %}
+</div>
+{% endif %}
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- CloudShield JS -->
+<script src="{{ url_for('static', filename='js/cloudshield.js') }}?v=dm2"></script>
+
+<script>
+  // Init Lucide icons
+  lucide.createIcons();
+</script>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

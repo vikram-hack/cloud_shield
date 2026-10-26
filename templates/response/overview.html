@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}Automated Response & Containment{% endblock %}
+{% block breadcrumb %}<span class="current">Automated Response</span>{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Automated Response & Containment Playbooks</h1>
+    <p class="cs-page-subtitle">Safe, localized incident containment and remediation orchestration with reversible audit trails</p>
+  </div>
+</div>
+
+<!-- Safety Notice Banner -->
+<div class="card" style="margin-bottom: 1.5rem; border-color: rgba(6, 182, 212, 0.3); background: rgba(6, 182, 212, 0.05);">
+  <div class="card-body" style="padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem;">
+    <i data-lucide="shield-alert" style="width: 28px; height: 28px; stroke: var(--accent-cyan); flex-shrink: 0;"></i>
+    <div>
+      <strong style="color: var(--accent-cyan); font-size: 0.9rem;">SOC Safety Controls Enforced:</strong>
+      <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">
+        To prevent real-world disruptions during security simulations, automated containment actions are restricted to <strong>simulated demo assets</strong> only. All actions are fully logged and support one-click rollback.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-3" style="gap: 1.5rem; margin-bottom: 2rem;">
+  <!-- Execute Action Form (1 col) -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title"><i data-lucide="zap"></i> Trigger Playbook Action</h3>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('response.execute') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="cs-form-group">
+          <label class="cs-label" for="action_type">Playbook Action *</label>
+          <select id="action_type" name="action_type" class="cs-select" required onchange="updateTargetUI(this.value)">
+            <option value="">Select Containment Playbook</option>
+            {% for k, v in allowed_actions.items() %}
+            <option value="{{ k }}">{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="cs-form-group" id="userTargetGroup" style="display: none;">
+          <label class="cs-label" for="targetUser">Demo User Account *</label>
+          <select id="targetUser" class="cs-select">
+            {% for u in test_users %}
+            <option value="{{ u.username }}">{{ u.username }} ({{ u.role }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="cs-form-group" id="resourceTargetGroup" style="display: none;">
+          <label class="cs-label" for="targetResource">Simulated Cloud Resource *</label>
+          <select id="targetResource" class="cs-select">
+            {% for r in sim_resources %}
+            <option value="{{ r.resource_id }}" data-type="{{ r.resource_type }}">{{ r.name }} ({{ r.resource_type }}) - {{ r.resource_id }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="cs-form-group" id="customTargetGroup">
+          <label class="cs-label" for="target_id">Target Identifier *</label>
+          <input type="text" id="target_id" name="target_id" class="cs-input" placeholder="IP address, username, or resource ID" required />
+        </div>
+
+        <input type="hidden" id="target_type" name="target_type" value="manual" />
+
+        <div class="cs-form-group">
+          <label class="cs-label" for="incident_id">Link to Active Incident (Optional)</label>
+          <select id="incident_id" name="incident_id" class="cs-select">
+            <option value="">Independent Action</option>
+            {% for inc in incidents %}
+            <option value="{{ inc.id }}">{{ inc.incident_number or inc.incident_id }} - {{ inc.title[:25] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">
+          <i data-lucide="play"></i> Execute Containment Action
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Action History Ledger (2 cols) -->
+  <div class="col-span-2 card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i data-lucide="history"></i> Containment Action Ledger & Rollback ({{ actions|length }})
+      </h3>
+    </div>
+    <div class="table-responsive">
+      <table class="cs-table">
+        <thead>
+          <tr>
+            <th>Time (UTC)</th>
+            <th>Playbook Action</th>
+            <th>Target</th>
+            <th>Result</th>
+            <th>Analyst</th>
+            <th style="text-align: right;">Rollback</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if actions %}
+            {% for act in actions %}
+            <tr>
+              <td style="font-size: 0.8rem; font-family: var(--font-mono); white-space: nowrap;">
+                {{ act.executed_at.strftime('%Y-%m-%d %H:%M') }}
+              </td>
+              <td>
+                <div style="font-weight: 500; color: var(--text-primary); font-size: 0.85rem;">
+                  {{ act.action_type | replace('_', ' ') | title }}
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ act.description }}
+                </div>
+              </td>
+              <td><code>{{ act.target_id }}</code></td>
+              <td>
+                {% if act.result == 'success' %}
+                <span class="badge badge-low">SUCCESS</span>
+                {% else %}
+                <span class="badge badge-critical">ERROR</span>
+                {% endif %}
+              </td>
+              <td style="font-size: 0.85rem;">{{ act.executor.username if act.executor else 'Automated' }}</td>
+              <td style="text-align: right; white-space: nowrap;">
+                {% if act.is_reversed %}
+                <span class="badge badge-muted"><i data-lucide="rotate-ccw" style="width:10px;height:10px;"></i> REVERSED</span>
+                {% elif act.result == 'success' and act.action_type in ['lock_test_account', 'isolate_resource', 'restrict_bucket'] %}
+                <form method="POST" action="{{ url_for('response.reverse_action', rid=act.id) }}" style="display: inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                  <button type="submit" class="btn btn-outline btn-xs" title="Rollback action">
+                    <i data-lucide="undo"></i> Reverse
+                  </button>
+                </form>
+                {% else %}
+                <span class="text-muted" style="font-size: 0.75rem;">N/A</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem 1rem;">
+                <i data-lucide="check-circle" style="width: 36px; height: 36px; stroke: var(--accent-green); margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto;"></i>
+                No automated containment actions executed yet.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateTargetUI(val) {
+  const userGroup = document.getElementById('userTargetGroup');
+  const resGroup = document.getElementById('resourceTargetGroup');
+  const customGroup = document.getElementById('customTargetGroup');
+  const targetId = document.getElementById('target_id');
+  const targetType = document.getElementById('target_type');
+
+  if (val === 'lock_test_account') {
+    userGroup.style.display = 'block';
+    resGroup.style.display = 'none';
+    customGroup.style.display = 'none';
+    targetType.value = 'user';
+    targetId.value = document.getElementById('targetUser').value;
+    document.getElementById('targetUser').onchange = function() { targetId.value = this.value; };
+  } else if (val === 'isolate_resource' || val === 'restrict_bucket') {
+    userGroup.style.display = 'none';
+    resGroup.style.display = 'block';
+    customGroup.style.display = 'none';
+    targetType.value = 'resource';
+    targetId.value = document.getElementById('targetResource').value;
+    document.getElementById('targetResource').onchange = function() { targetId.value = this.value; };
+  } else {
+    userGroup.style.display = 'none';
+    resGroup.style.display = 'none';
+    customGroup.style.display = 'block';
+    targetType.value = 'log';
+  }
+}
+</script>
+{% endblock %}

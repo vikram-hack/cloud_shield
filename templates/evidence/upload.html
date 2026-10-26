@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Deposit Evidence{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('evidence.list_evidence') }}">Evidence Vault</a>
+<span class="separator">/</span>
+<span class="current">Deposit</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Deposit Forensic Evidence</h1>
+    <p class="cs-page-subtitle">Upload digital artifact with automatic SHA-256 calculation and immutable chain of custody record</p>
+  </div>
+  <a href="{{ url_for('evidence.list_evidence') }}" class="btn btn-outline">
+    <i data-lucide="arrow-left"></i> Vault Overview
+  </a>
+</div>
+
+<div class="card" style="max-width: 700px; margin: 0 auto;">
+  <div class="card-header">
+    <h3 class="card-title"><i data-lucide="shield-check"></i> Evidence Ingestion Form</h3>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('evidence.upload') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div class="cs-form-group">
+        <label class="cs-label" for="file">Select File Artifact *</label>
+        <input type="file" id="file" name="file" class="cs-input" required style="padding: 0.5rem;" />
+        <small class="text-muted" style="display: block; margin-top: 0.35rem;">
+          Supported: PCAP, log exports, JSON payloads, disk snapshots, memory dumps, CSV audit logs (max 50 MB)
+        </small>
+      </div>
+
+      <div class="grid grid-2" style="gap: 1rem;">
+        <div class="cs-form-group">
+          <label class="cs-label" for="evidence_type">Artifact Classification *</label>
+          <select id="evidence_type" name="evidence_type" class="cs-select" required>
+            {% for t in allowed_types %}
+            <option value="{{ t }}">{{ t | replace('_', ' ') | title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="cs-form-group">
+          <label class="cs-label" for="incident_id">Link to Incident</label>
+          <select id="incident_id" name="incident_id" class="cs-select">
+            <option value="">None (Independent Artifact)</option>
+            {% for inc in incidents %}
+            <option value="{{ inc.id }}" {% if request.args.get('incident_id', type=int) == inc.id %}selected{% endif %}>
+              {{ inc.incident_number or inc.incident_id }} - {{ inc.title[:25] }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="description">Provenance & Description</label>
+        <textarea id="description" name="description" class="cs-textarea" rows="3" placeholder="Source host, acquisition tool, preservation method, notes..."></textarea>
+      </div>
+
+      <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.25rem;">
+        <div style="display: flex; gap: 0.5rem; align-items: center; color: var(--accent-cyan); font-weight: 500; font-size: 0.85rem;">
+          <i data-lucide="lock" style="width: 16px; height: 16px;"></i> Forensic Integrity Guarantee
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0.25rem 0 0 0;">
+          Upon upload, an initial SHA-256 cryptographic digest is generated and recorded. Any subsequent modification of this file on disk will trigger an integrity failure.
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+        <a href="{{ url_for('evidence.list_evidence') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i data-lucide="upload"></i> Deposit & Hash Artifact</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

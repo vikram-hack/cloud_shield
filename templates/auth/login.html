@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Login{% endblock %}
+
+{% block auth_content %}
+<div class="cs-auth-card">
+  <div class="cs-auth-logo">
+    <div class="cs-auth-logo-icon">
+      <i data-lucide="shield-check"></i>
+    </div>
+    <div>
+      <div class="cs-auth-logo-text">CloudShield</div>
+      <div class="cs-auth-logo-subtitle">Security Operations Platform</div>
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <div class="cs-form-group">
+      <label class="cs-label" for="username">Username</label>
+      <input class="cs-input" type="text" id="username" name="username"
+             value="{{ username | default('') }}"
+             placeholder="Enter your username" required autocomplete="username" />
+    </div>
+
+    <div class="cs-form-group">
+      <label class="cs-label" for="password">Password</label>
+      <input class="cs-input" type="password" id="password" name="password"
+             placeholder="Enter your password" required autocomplete="current-password" />
+    </div>
+
+    <div class="d-flex align-center justify-between mb-24" style="gap:8px">
+      <label class="cs-checkbox-group" style="cursor:pointer">
+        <input class="cs-checkbox" type="checkbox" name="remember" id="remember" />
+        <span style="font-size:13px; color:var(--cs-muted-lt)">Remember me</span>
+      </label>
+    </div>
+
+    <button class="cs-btn cs-btn-primary w-100" type="submit" style="width:100%; justify-content:center; padding:12px;">
+      <i data-lucide="log-in"></i>
+      Sign In
+    </button>
+  </form>
+
+  <div style="margin-top:28px; padding:18px; background:#141414; border:1px solid var(--cs-border); border-radius:14px;">
+    <div style="font-size:11px; font-weight:700; color:var(--cs-sec); letter-spacing:0.8px; margin-bottom:8px; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+      <i data-lucide="info" style="width:14px;height:14px;"></i>
+      Local Lab Environment
+    </div>
+    <div style="font-size:12px; color:var(--cs-muted-vis); line-height:1.7;">
+      Default admin: <span class="cs-mono" style="color:var(--cs-sec); font-weight:600;">admin</span> / <span class="cs-mono" style="color:var(--cs-sec); font-weight:600;">CloudShield@Admin2024!</span><br />
+      Demo analyst: <span class="cs-mono" style="color:var(--cs-green); font-weight:600;">analyst_demo</span> / <span class="cs-mono" style="color:var(--cs-green); font-weight:600;">Demo@Analyst2024!</span><br />
+      <span style="color:var(--cs-amber); font-size:11.5px;">⚠ Change the default password after first login.</span>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-top:20px; font-size:11px; color:var(--cs-muted);">
+    CloudShield v1.0.0 — MSc Information Security &amp; Digital Forensics Project<br/>
+    Local Simulated Environment — No real cloud connections
+  </div>
+</div>
+{% endblock %}

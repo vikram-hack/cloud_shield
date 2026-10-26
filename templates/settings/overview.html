@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% block title %}System Settings & Administration{% endblock %}
+{% block breadcrumb %}<span class="current">Settings</span>{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">SOC Settings & Administration</h1>
+    <p class="cs-page-subtitle">RBAC access control, user provisioning, and threat detection engine rules</p>
+  </div>
+  <div>
+    <a href="{{ url_for('settings.create_user') }}" class="btn btn-primary">
+      <i data-lucide="user-plus"></i> Provision User
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-3" style="gap: 1.5rem; margin-bottom: 2rem;">
+  <!-- User Management (2 cols) -->
+  <div class="col-span-2 card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 class="card-title"><i data-lucide="users"></i> User Accounts & RBAC ({{ users|length }})</h3>
+      <a href="{{ url_for('settings.create_user') }}" class="btn btn-outline btn-xs"><i data-lucide="plus"></i> Add</a>
+    </div>
+    <div class="table-responsive">
+      <table class="cs-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Last Active</th>
+            <th style="text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>
+              <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                <i data-lucide="user" style="width: 14px; height: 14px; color: var(--accent-cyan);"></i>
+                {{ u.username }}
+                {% if u.id == current_user.id %}
+                <span class="badge badge-muted" style="padding: 1px 5px; font-size: 0.7rem;">YOU</span>
+                {% endif %}
+                {% if u.is_demo %}
+                <span class="badge badge-muted" style="padding: 1px 5px; font-size: 0.7rem;">DEMO</span>
+                {% endif %}
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ u.email }}</div>
+            </td>
+            <td>
+              {% if u.id != current_user.id %}
+              <form method="POST" action="{{ url_for('settings.change_role', uid=u.id) }}" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <select name="role" class="cs-select" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; width: auto;" onchange="this.form.submit()">
+                  <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+                  <option value="analyst" {% if u.role == 'analyst' %}selected{% endif %}>Analyst</option>
+                  <option value="viewer" {% if u.role == 'viewer' %}selected{% endif %}>Viewer</option>
+                </select>
+              </form>
+              {% else %}
+              <span class="badge badge-primary">{{ u.role | upper }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.is_locked %}
+              <span class="badge badge-critical"><i data-lucide="lock" style="width:10px;height:10px;"></i> LOCKED</span>
+              {% else %}
+              <span class="badge badge-low"><i data-lucide="check" style="width:10px;height:10px;"></i> ACTIVE</span>
+              {% endif %}
+            </td>
+            <td style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">
+              {{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else 'Never' }}
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+              {% if u.id != current_user.id %}
+              <form method="POST" action="{{ url_for('settings.toggle_lock', uid=u.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <button type="submit" class="btn btn-outline btn-xs" title="{{ 'Unlock' if u.is_locked else 'Lock' }} account">
+                  {% if u.is_locked %}
+                  <i data-lucide="unlock"></i> Unlock
+                  {% else %}
+                  <i data-lucide="lock"></i> Lock
+                  {% endif %}
+                </button>
+              </form>
+              {% else %}
+              <span class="text-muted" style="font-size: 0.75rem;">Self</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RBAC Role Matrix (1 col) -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title"><i data-lucide="shield"></i> Role Permissions</h3>
+    </div>
+    <div class="card-body" style="font-size: 0.85rem;">
+      <div style="margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color);">
+        <strong style="color: var(--accent-red);">Administrator (Admin)</strong>
+        <p style="color: var(--text-secondary); margin: 0.25rem 0 0 0;">
+          Full platform access: manage users, lock accounts, toggle detection rules, inspect audit logs, and trigger response actions.
+        </p>
+      </div>
+
+      <div style="margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color);">
+        <strong style="color: var(--accent-cyan);">Security Analyst</strong>
+        <p style="color: var(--text-secondary); margin: 0.25rem 0 0 0;">
+          Full incident triage: investigate alerts, upload and verify evidence, update case lifecycles, and run posture scans.
+        </p>
+      </div>
+
+      <div>
+        <strong style="color: var(--accent-green);">Read-Only Auditor (Viewer)</strong>
+        <p style="color: var(--text-secondary); margin: 0.25rem 0 0 0;">
+          Read-only visibility across dashboards, events, alerts, and executive reports without modification privileges.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Threat Detection Engine Rules -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i data-lucide="cpu"></i> Threat Detection Engine Rules ({{ rules|length }})</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="cs-table">
+      <thead>
+        <tr>
+          <th>Rule Name</th>
+          <th>Category</th>
+          <th>Severity</th>
+          <th>Detection Pattern / Threshold</th>
+          <th>State</th>
+          <th style="text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if rules %}
+          {% for r in rules %}
+          <tr>
+            <td>
+              <div style="font-weight: 600; color: var(--text-primary);">{{ r.name }}</div>
+              <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ r.description }}</div>
+            </td>
+            <td><span class="badge badge-muted">{{ r.category }}</span></td>
+            <td><span class="badge badge-{{ r.severity }}">{{ r.severity | upper }}</span></td>
+            <td>
+              {% if r.pattern %}
+              <code style="font-size: 0.75rem;">{{ r.pattern }}</code>
+              {% else %}
+              <span style="font-size: 0.8rem; color: var(--text-secondary);">Count &ge; {{ r.threshold }} in {{ r.window_seconds }}s</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.is_enabled %}
+              <span class="badge badge-low">ACTIVE</span>
+              {% else %}
+              <span class="badge badge-muted">DISABLED</span>
+              {% endif %}
+            </td>
+            <td style="text-align: right;">
+              <form method="POST" action="{{ url_for('settings.toggle_rule', rid=r.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <button type="submit" class="btn btn-outline btn-xs">
+                  {{ 'Disable' if r.is_enabled else 'Enable' }}
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+              No detection rules configured.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

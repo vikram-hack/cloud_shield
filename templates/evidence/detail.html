@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}Evidence {{ ev.evidence_id }}{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('evidence.list_evidence') }}">Evidence Vault</a>
+<span class="separator">/</span>
+<span class="current">{{ ev.evidence_id }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+      <h1 class="cs-page-title" style="margin-bottom: 0;">{{ ev.original_filename }}</h1>
+      {% if ev.integrity_status == 'verified' %}
+      <span class="badge badge-low"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> VERIFIED</span>
+      {% elif ev.integrity_status == 'tampered' %}
+      <span class="badge badge-critical"><i data-lucide="alert-triangle" style="width:12px;height:12px;"></i> TAMPERED</span>
+      {% else %}
+      <span class="badge badge-warning">UNVERIFIED</span>
+      {% endif %}
+    </div>
+    <p class="cs-page-subtitle">Evidence ID: <code>{{ ev.evidence_id }}</code> &bull; Ingested {{ ev.collection_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }}</p>
+  </div>
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    {% if current_user.is_analyst() %}
+    <form method="POST" action="{{ url_for('evidence.verify', eid=ev.id) }}" style="display: inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button type="submit" class="btn btn-primary"><i data-lucide="shield-check"></i> Verify Integrity Now</button>
+    </form>
+    <a href="{{ url_for('evidence.download', eid=ev.id) }}" class="btn btn-outline">
+      <i data-lucide="download"></i> Download Artifact
+    </a>
+    {% endif %}
+    <a href="{{ url_for('evidence.list_evidence') }}" class="btn btn-outline">
+      <i data-lucide="arrow-left"></i> Back to Vault
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-3" style="gap: 1.5rem;">
+  <!-- Left 2 cols: Properties & Chain of Custody -->
+  <div class="col-span-2" style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <!-- Artifact Metadata Card -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="file-text"></i> Cryptographic Properties</h3>
+      </div>
+      <div class="card-body">
+        <div style="margin-bottom: 1.25rem;">
+          <label class="cs-label">SHA-256 Digest (Cryptographic Baseline)</label>
+          <div class="code-block" style="margin-top: 0.25rem; word-break: break-all; font-size: 0.85rem; padding: 0.75rem 1rem;">
+            <code>{{ ev.sha256_hash }}</code>
+          </div>
+        </div>
+
+        <div class="grid grid-2" style="gap: 1.25rem;">
+          <div>
+            <label class="cs-label">Classification Type</label>
+            <div><span class="badge badge-muted">{{ ev.evidence_type | replace('_', ' ') | title }}</span></div>
+          </div>
+          <div>
+            <label class="cs-label">File Size</label>
+            <div>
+              {% if ev.file_size > 1048576 %}
+              {{ "%.2f"|format(ev.file_size / 1048576) }} MB ({{ ev.file_size }} bytes)
+              {% elif ev.file_size > 1024 %}
+              {{ "%.2f"|format(ev.file_size / 1024) }} KB ({{ ev.file_size }} bytes)
+              {% else %}
+              {{ ev.file_size }} bytes
+              {% endif %}
+            </div>
+          </div>
+          <div>
+            <label class="cs-label">Deposited By</label>
+            <div>{{ ev.collector.username if ev.collector else 'Automated Ingestion' }}</div>
+          </div>
+          <div>
+            <label class="cs-label">Last Integrity Verification</label>
+            <div>
+              {% if ev.last_verified %}
+              {{ ev.last_verified.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+              {% else %}
+              <span class="text-muted">Never verified</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if ev.description %}
+        <div style="margin-top: 1.25rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+          <label class="cs-label">Acquisition Notes / Provenance</label>
+          <div style="color: var(--text-primary); font-size: 0.9rem; margin-top: 0.25rem;">{{ ev.description }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Chain of Custody Ledger -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="layers"></i> Chain of Custody Audit Ledger</h3>
+      </div>
+      <div class="table-responsive">
+        <table class="cs-table">
+          <thead>
+            <tr>
+              <th>Timestamp (UTC)</th>
+              <th>Action Performed</th>
+              <th>Analyst</th>
+              <th>Result</th>
+              <th>Details / Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if handling %}
+              {% for h in handling %}
+              <tr>
+                <td style="font-size: 0.8rem; font-family: var(--font-mono); white-space: nowrap;">
+                  {{ h.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                </td>
+                <td>
+                  <span class="badge badge-muted" style="text-transform: capitalize;">{{ h.action }}</span>
+                </td>
+                <td>{{ h.actor.username if h.actor else 'System' }}</td>
+                <td>
+                  {% if h.result == 'verified' or h.result == 'success' %}
+                  <span class="badge badge-low">{{ h.result | upper }}</span>
+                  {% elif h.result == 'tampered' or h.result == 'failure' %}
+                  <span class="badge badge-critical">{{ h.result | upper }}</span>
+                  {% else %}
+                  <span class="badge badge-muted">{{ h.result or '—' }}</span>
+                  {% endif %}
+                </td>
+                <td style="font-size: 0.85rem; color: var(--text-secondary);">
+                  {{ h.notes or '—' }}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                  No handling actions logged yet.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right col: Linked Incident & Info -->
+  <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <!-- Linked Incident Card -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="flame"></i> Linked Incident</h3>
+      </div>
+      <div class="card-body">
+        {% if incident %}
+        <div style="margin-bottom: 0.75rem;">
+          <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+            {{ incident.incident_id }}: {{ incident.title }}
+          </div>
+          <span class="badge badge-{{ incident.severity }}">{{ incident.severity | upper }}</span>
+          <span class="badge badge-muted">{{ incident.status | upper }}</span>
+        </div>
+        <a href="{{ url_for('incidents.detail', iid=incident.id) }}" class="btn btn-outline btn-sm" style="width: 100%;">
+          <i data-lucide="external-link"></i> Open Incident File
+        </a>
+        {% else %}
+        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0;">
+          This evidence is not currently attached to a formal security incident case.
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Forensic Notice -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="info"></i> Forensic Integrity Policy</h3>
+      </div>
+      <div class="card-body" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+        <p>In accordance with ISO/IEC 27037 standards for digital evidence handling:</p>
+        <ul style="padding-left: 1.25rem; margin-top: 0.5rem; margin-bottom: 0;">
+          <li style="margin-bottom: 0.35rem;">Artifacts are stored read-only on the secure server host.</li>
+          <li style="margin-bottom: 0.35rem;">Every access, download, or verification recalculates the SHA-256 digest.</li>
+          <li>Any byte mismatch immediately flags the artifact status as <strong>TAMPERED</strong>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

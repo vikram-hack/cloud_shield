@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}{{ resource.name }}{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('resources.list_resources') }}">Cloud Resources</a>
+<span class="separator">/</span><span class="current">{{ resource.name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <div class="d-flex align-center gap-12 mb-8">
+      <div class="cs-resource-icon {{ resource.resource_type }}" style="width:40px;height:40px">
+        <i data-lucide="{{ {'vm':'monitor','bucket':'database','iam_user':'user','iam_role':'key','firewall':'shield','security_group':'lock','database':'database'}.get(resource.resource_type,'server') }}" style="width:20px;height:20px"></i>
+      </div>
+      <h1 class="cs-page-title">{{ resource.name }}</h1>
+      <span class="cs-sim-banner"><i data-lucide="flask-conical" style="width:10px;height:10px"></i> SIMULATED</span>
+    </div>
+    <div class="cs-mono text-dim" style="font-size:12px">{{ resource.resource_id }}</div>
+  </div>
+  {% if current_user.is_analyst() %}
+  <div class="cs-page-actions">
+    <form method="POST" action="{{ url_for('resources.rescan', rid=resource.id) }}" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button class="cs-btn cs-btn-cyan"><i data-lucide="refresh-cw"></i> Re-scan</button>
+    </form>
+    <a href="{{ url_for('resources.edit', rid=resource.id) }}" class="cs-btn cs-btn-secondary"><i data-lucide="edit-2"></i> Edit</a>
+    {% if current_user.is_admin() %}
+    <form method="POST" action="{{ url_for('resources.delete', rid=resource.id) }}" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button class="cs-btn cs-btn-danger" data-confirm="Delete this resource?"><i data-lucide="trash-2"></i> Delete</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="cs-detail-grid mb-24">
+  <div class="cs-card">
+    <div class="cs-card-header"><div class="cs-card-title"><i data-lucide="info"></i> Resource Details</div></div>
+    <div class="cs-kv-list">
+      <div class="cs-kv-item"><div class="cs-kv-key">Resource ID</div><div class="cs-kv-val cs-mono">{{ resource.resource_id }}</div></div>
+      <div class="cs-kv-item"><div class="cs-kv-key">Type</div><div class="cs-kv-val">{{ resource.resource_type | replace('_',' ') | title }}</div></div>
+      <div class="cs-kv-item"><div class="cs-kv-key">Status</div><div class="cs-kv-val"><span class="cs-badge cs-badge-{{ resource.status }}">{{ resource.status }}</span></div></div>
+      <div class="cs-kv-item"><div class="cs-kv-key">Owner</div><div class="cs-kv-val">{{ resource.owner or '—' }}</div></div>
+      <div class="cs-kv-item"><div class="cs-kv-key">Region</div><div class="cs-kv-val">{{ resource.region }}</div></div>
+      <div class="cs-kv-item"><div class="cs-kv-key">Created</div><div class="cs-kv-val">{{ resource.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</div></div>
+    </div>
+  </div>
+  <div class="cs-card">
+    <div class="cs-card-header"><div class="cs-card-title"><i data-lucide="shield"></i> Security Configuration</div></div>
+    <div class="cs-kv-list">
+      <div class="cs-kv-item">
+        <div class="cs-kv-key">Public Access</div>
+        <div class="cs-kv-val">{% if resource.is_public %}<span class="cs-badge cs-badge-critical">Public</span>{% else %}<span class="cs-badge cs-badge-verified">Private</span>{% endif %}</div>
+      </div>
+      <div class="cs-kv-item">
+        <div class="cs-kv-key">Encryption</div>
+        <div class="cs-kv-val">{% if resource.encryption_enabled %}<span class="text-green fw-600">Enabled</span>{% else %}<span class="text-red fw-600">Disabled</span>{% endif %}</div>
+      </div>
+      <div class="cs-kv-item">
+        <div class="cs-kv-key">Logging</div>
+        <div class="cs-kv-val">{% if resource.logging_enabled %}<span class="text-green fw-600">Enabled</span>{% else %}<span class="text-red fw-600">Disabled</span>{% endif %}</div>
+      </div>
+      <div class="cs-kv-item">
+        <div class="cs-kv-key">Risk Score</div>
+        <div class="cs-kv-val">
+          <div class="cs-risk-bar-wrap">
+            <div class="cs-risk-bar" style="width:120px">
+              <div class="cs-risk-bar-fill {{ 'critical' if resource.risk_score >= 8 else 'high' if resource.risk_score >= 6 else 'medium' if resource.risk_score >= 4 else 'low' if resource.risk_score > 0 else 'none' }}"
+                   style="width:{{ [resource.risk_score * 10, 100] | min }}%"></div>
+            </div>
+            <div class="cs-risk-score fw-600">{{ resource.risk_score }} / 10</div>
+          </div>
+        </div>
+      </div>
+      {% for k, v in config.items() %}
+      <div class="cs-kv-item">
+        <div class="cs-kv-key">{{ k | replace('_',' ') | title }}</div>
+        <div class="cs-kv-val">{% if v == true %}<span class="text-amber">Yes</span>{% elif v == false %}No{% else %}{{ v }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Findings -->
+<div class="cs-card">
+  <div class="cs-card-header">
+    <div class="cs-card-title"><i data-lucide="alert-triangle"></i> Security Findings ({{ findings | length }})</div>
+  </div>
+  {% if findings %}
+  <div class="cs-table-wrapper">
+    <table class="cs-table">
+      <thead><tr><th>Finding</th><th>Severity</th><th>Score</th><th>Status</th><th>Detected</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for f in findings %}
+      <tr>
+        <td>
+          <div class="fw-600" style="color:var(--cs-text)">{{ f.title }}</div>
+          <div class="text-dim" style="font-size:12px">{{ f.description | truncate(80) }}</div>
+        </td>
+        <td><span class="cs-badge cs-badge-{{ f.severity }}">{{ f.severity }}</span></td>
+        <td class="fw-600">{{ f.risk_score }}</td>
+        <td><span class="cs-badge cs-badge-{{ f.status }}">{{ f.status }}</span></td>
+        <td class="text-dim" style="font-size:12px">{{ f.detected_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          {% if current_user.is_analyst() and f.status == 'open' %}
+          <div class="d-flex gap-8">
+            <form method="POST" action="{{ url_for('posture.remediate', fid=f.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button class="cs-btn cs-btn-sm cs-btn-primary">Remediate</button>
+            </form>
+            <form method="POST" action="{{ url_for('posture.accept_risk', fid=f.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button class="cs-btn cs-btn-sm cs-btn-secondary">Accept Risk</button>
+            </form>
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="cs-empty"><i data-lucide="check-circle"></i><div class="cs-empty-title">No findings for this resource</div></div>
+  {% endif %}
+</div>
+{% endblock %}

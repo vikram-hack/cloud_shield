@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block title %}Overview{% endblock %}
+
+{% block breadcrumb %}
+<span class="current">Overview</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Security Operations Overview</h1>
+    <div class="cs-page-subtitle">Real-time security posture — {{ now.strftime('%d %b %Y, %H:%M') }} UTC</div>
+  </div>
+  <div class="cs-page-actions">
+    {% for p, label in [('24h','24h'),('7d','7 Days'),('30d','30 Days')] %}
+    <a href="?period={{ p }}" class="cs-btn cs-btn-sm {% if period == p %}cs-btn-primary{% else %}cs-btn-secondary{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Metric Cards -->
+<div class="grid-6 mb-24">
+  <div class="cs-metric-card green">
+    <div class="cs-metric-label">Cloud Resources</div>
+    <div class="cs-metric-value">{{ total_resources }}</div>
+    <div class="cs-metric-sub">Simulated assets</div>
+    <div class="cs-metric-icon"><i data-lucide="server"></i></div>
+  </div>
+  <div class="cs-metric-card red">
+    <div class="cs-metric-label">High-Risk Resources</div>
+    <div class="cs-metric-value">{{ high_risk }}</div>
+    <div class="cs-metric-sub">Score ≥ 6.0</div>
+    <div class="cs-metric-icon"><i data-lucide="alert-triangle"></i></div>
+  </div>
+  <div class="cs-metric-card cyan">
+    <div class="cs-metric-label">Security Events</div>
+    <div class="cs-metric-value">{{ events_count }}</div>
+    <div class="cs-metric-sub">Past {{ period }}</div>
+    <div class="cs-metric-icon"><i data-lucide="activity"></i></div>
+  </div>
+  <div class="cs-metric-card amber">
+    <div class="cs-metric-label">Open Alerts</div>
+    <div class="cs-metric-value">{{ open_alerts }}</div>
+    <div class="cs-metric-sub">New / Acknowledged</div>
+    <div class="cs-metric-icon"><i data-lucide="bell-ring"></i></div>
+  </div>
+  <div class="cs-metric-card red">
+    <div class="cs-metric-label">Critical Incidents</div>
+    <div class="cs-metric-value">{{ critical_incidents }}</div>
+    <div class="cs-metric-sub">Active</div>
+    <div class="cs-metric-icon"><i data-lucide="siren"></i></div>
+  </div>
+  <div class="cs-metric-card {% if evidence_status == 'OK' %}green{% elif evidence_status == 'TAMPERED' %}red{% else %}cyan{% endif %}">
+    <div class="cs-metric-label">Evidence Integrity</div>
+    <div class="cs-metric-value" style="font-size:20px">{{ evidence_status }}</div>
+    <div class="cs-metric-sub">{% if tampered_ev > 0 %}{{ tampered_ev }} tampered{% else %}All hashes verified{% endif %}</div>
+    <div class="cs-metric-icon"><i data-lucide="archive"></i></div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid-2 mb-24">
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="trending-up"></i> Security Events Over Time</div>
+    </div>
+    <div class="cs-chart-container" style="height:200px">
+      <canvas id="eventsLineChart"></canvas>
+    </div>
+  </div>
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="bar-chart-2"></i> Alerts by Severity</div>
+    </div>
+    <div class="cs-chart-container" style="height:200px">
+      <canvas id="alertsSevChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="grid-3 mb-24">
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="pie-chart"></i> Attack Categories</div>
+    </div>
+    <div class="cs-chart-container" style="height:200px">
+      <canvas id="catChart"></canvas>
+    </div>
+  </div>
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="donut"></i> Resource Risk Distribution</div>
+    </div>
+    <div class="cs-chart-container" style="height:200px">
+      <canvas id="riskDistChart"></canvas>
+    </div>
+  </div>
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="donut"></i> Incident Status</div>
+    </div>
+    <div class="cs-chart-container" style="height:200px">
+      <canvas id="incStatusChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Lower Sections -->
+<div class="grid-2 mb-24">
+  <!-- Recent Events -->
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="activity"></i> Recent Security Events</div>
+      <a href="{{ url_for('events.list_events') }}" class="cs-btn cs-btn-sm cs-btn-secondary">View all</a>
+    </div>
+    {% if recent_events %}
+    <div class="cs-table-wrapper">
+      <table class="cs-table">
+        <thead><tr>
+          <th>Time (UTC)</th><th>Category</th><th>Severity</th><th>Description</th>
+        </tr></thead>
+        <tbody>
+        {% for ev in recent_events %}
+        <tr>
+          <td class="cs-mono text-dim" style="font-size:11px">{{ ev.timestamp.strftime('%m-%d %H:%M') }}</td>
+          <td><span class="cs-badge cs-badge-{{ ev.severity }}">{{ ev.category | replace('_',' ') | title }}</span></td>
+          <td><span class="cs-badge cs-badge-{{ ev.severity }}">{{ ev.severity | upper }}</span></td>
+          <td class="truncate" style="max-width:220px" title="{{ ev.description }}">{{ ev.description | truncate(60) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="cs-empty">
+      <i data-lucide="shield-check"></i>
+      <div class="cs-empty-title">No recent events</div>
+      <div class="cs-empty-text">No security events recorded in this period.</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Alerts -->
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="bell-ring"></i> Critical Alerts</div>
+      <a href="{{ url_for('alerts.list_alerts') }}" class="cs-btn cs-btn-sm cs-btn-secondary">View all</a>
+    </div>
+    {% if recent_alerts %}
+    <div class="cs-timeline">
+      {% for alert in recent_alerts %}
+      <div class="cs-timeline-item {{ alert.severity }}">
+        <div class="cs-timeline-time">{{ alert.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</div>
+        <div class="cs-timeline-content">
+          <a href="{{ url_for('alerts.detail', aid=alert.id) }}" class="text-green">{{ alert.title | truncate(80) }}</a>
+        </div>
+        <div class="cs-timeline-meta d-flex gap-8">
+          <span class="cs-badge cs-badge-{{ alert.severity }}">{{ alert.severity }}</span>
+          <span class="cs-badge cs-badge-{{ alert.status }}">{{ alert.status }}</span>
+          {% if alert.source_ip %}<span class="cs-mono" style="font-size:11px">{{ alert.source_ip }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="cs-empty">
+      <i data-lucide="bell"></i>
+      <div class="cs-empty-title">No critical alerts</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- High Risk Resources + Active Incidents -->
+<div class="grid-2">
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="server"></i> High-Risk Resources</div>
+      <a href="{{ url_for('resources.list_resources') }}" class="cs-btn cs-btn-sm cs-btn-secondary">View all</a>
+    </div>
+    {% if high_risk_resources %}
+    {% for res in high_risk_resources %}
+    <div class="d-flex align-center gap-12 mb-12" style="padding:10px; background:rgba(255,255,255,0.02); border-radius:8px;">
+      <div class="cs-resource-icon {{ res.resource_type }}">
+        <i data-lucide="{{ {'vm':'monitor','bucket':'database','iam_user':'user','iam_role':'key','firewall':'shield','security_group':'lock','database':'database'}.get(res.resource_type,'server') }}"></i>
+      </div>
+      <div class="flex-1 truncate">
+        <a href="{{ url_for('resources.detail', rid=res.id) }}" class="fw-600" style="color:var(--cs-text)">{{ res.name }}</a>
+        <div class="text-dim" style="font-size:11px">{{ res.resource_type | replace('_',' ') | title }}</div>
+      </div>
+      <div class="cs-risk-bar-wrap" style="width:100px">
+        <div class="cs-risk-bar"><div class="cs-risk-bar-fill {{ 'critical' if res.risk_score >= 8 else 'high' if res.risk_score >= 6 else 'medium' }}" style="width:{{ [res.risk_score * 10, 100] | min }}%"></div></div>
+        <div class="cs-risk-score">{{ res.risk_score }}</div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="cs-empty"><i data-lucide="check-circle"></i><div class="cs-empty-title">No high-risk resources</div></div>
+    {% endif %}
+  </div>
+
+  <div class="cs-card">
+    <div class="cs-card-header">
+      <div class="cs-card-title"><i data-lucide="siren"></i> Active Incidents</div>
+      <a href="{{ url_for('incidents.list_incidents') }}" class="cs-btn cs-btn-sm cs-btn-secondary">View all</a>
+    </div>
+    {% if active_incidents %}
+    {% for inc in active_incidents %}
+    <div style="padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; margin-bottom:8px; border-left:3px solid var(--cs-{% if inc.severity == 'critical' %}red{% elif inc.severity == 'high' %}amber{% else %}cyan{% endif %});">
+      <div class="d-flex align-center justify-between gap-8 mb-8">
+        <a href="{{ url_for('incidents.detail', iid=inc.id) }}" class="fw-600" style="color:var(--cs-text)">{{ inc.title | truncate(55) }}</a>
+        <span class="cs-badge cs-badge-{{ inc.severity }}">{{ inc.severity }}</span>
+      </div>
+      <div class="d-flex gap-8 align-center">
+        <span class="cs-badge cs-badge-{{ inc.status }}">{{ inc.status }}</span>
+        <span class="text-dim" style="font-size:11px">{{ inc.incident_id }}</span>
+        <span class="text-dim" style="font-size:11px">{{ inc.created_at.strftime('%b %d') }}</span>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="cs-empty"><i data-lucide="check-circle"></i><div class="cs-empty-title">No active incidents</div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const evLabels = {{ events_by_day | map(attribute='date') | list | tojson }};
+const evData   = {{ events_by_day | map(attribute='count') | list | tojson }};
+
+CS.lineChart(
+  document.getElementById('eventsLineChart'),
+  evLabels,
+  [{
+    label: 'Events',
+    data: evData,
+    borderColor: CS.COLORS.purple,
+    backgroundColor: 'rgba(164,118,255,0.08)',
+    borderWidth: 2,
+    fill: true,
+    tension: 0.4,
+    pointRadius: 3,
+    pointBackgroundColor: CS.COLORS.purple,
+    pointBorderColor: 'rgba(164,118,255,0.5)',
+  }]
+);
+
+const alertSevLabels = {{ alerts_by_severity.keys() | list | tojson }};
+const alertSevData   = {{ alerts_by_severity.values() | list | tojson }};
+const alertSevColors = alertSevLabels.map(s => CS.SEVERITY_COLORS[s] || CS.COLORS.muted);
+CS.barChart(document.getElementById('alertsSevChart'), alertSevLabels, alertSevData, alertSevColors);
+
+const catLabels = {{ events_by_category.keys() | list | tojson }};
+const catData   = {{ events_by_category.values() | list | tojson }};
+const catColors = [CS.COLORS.red, CS.COLORS.amber, CS.COLORS.cyan, CS.COLORS.purple, CS.COLORS.green, CS.COLORS.orange];
+CS.doughnutChart(document.getElementById('catChart'), catLabels.map(l => l.replace(/_/g,' ')), catData, catColors);
+
+const riskLabels = ['Critical','High','Medium','Low','Clean'];
+const riskData   = [{{ risk_dist.critical }}, {{ risk_dist.high }}, {{ risk_dist.medium }}, {{ risk_dist.low }}, {{ risk_dist.clean }}];
+CS.doughnutChart(document.getElementById('riskDistChart'), riskLabels, riskData,
+  [CS.COLORS.red, CS.COLORS.orange, CS.COLORS.amber, CS.COLORS.green, CS.COLORS.muted]);
+
+const incLabels = {{ incidents_by_status.keys() | list | tojson }};
+const incData   = {{ incidents_by_status.values() | list | tojson }};
+const incColors = incLabels.map(s => ({open:CS.COLORS.green, investigating:CS.COLORS.amber, contained:CS.COLORS.orange, resolved:CS.COLORS.cyan, closed:CS.COLORS.muted}[s] || CS.COLORS.muted));
+CS.doughnutChart(document.getElementById('incStatusChart'), incLabels, incData, incColors);
+</script>
+{% endblock %}

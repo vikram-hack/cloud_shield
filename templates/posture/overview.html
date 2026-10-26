@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Security Posture{% endblock %}
+{% block breadcrumb %}<span class="current">Security Posture</span>{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Security Posture Assessment</h1>
+    <div class="cs-page-subtitle">Rule-based cloud configuration analysis — Simulated environment</div>
+  </div>
+  {% if current_user.is_analyst() %}
+  <div class="cs-page-actions">
+    <form method="POST" action="{{ url_for('posture.run_assessment') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button class="cs-btn cs-btn-primary"><i data-lucide="scan-search"></i> Run Assessment</button>
+    </form>
+    <a href="{{ url_for('reports.posture_report') }}" class="cs-btn cs-btn-secondary"><i data-lucide="file-text"></i> PDF Report</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Severity Stats -->
+<div class="grid-4 mb-24">
+  {% for sev, color in [('critical','red'),('high','amber'),('medium','cyan'),('low','green')] %}
+  <div class="cs-metric-card {{ color }}">
+    <div class="cs-metric-label">{{ sev | title }} Findings</div>
+    <div class="cs-metric-value">{{ severity_stats.get(sev, 0) }}</div>
+    <div class="cs-metric-sub">Open findings</div>
+    <div class="cs-metric-icon"><i data-lucide="alert-triangle"></i></div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Filters -->
+<div class="cs-card mb-16">
+  <form method="GET" class="cs-filter-bar">
+    <input class="cs-input" style="max-width:240px" name="q" value="{{ q }}" placeholder="Search findings…" />
+    <select class="cs-select" style="max-width:140px" name="severity">
+      <option value="">All Severity</option>
+      {% for s in ['critical','high','medium','low','info'] %}
+      <option value="{{ s }}" {% if s == severity %}selected{% endif %}>{{ s | title }}</option>
+      {% endfor %}
+    </select>
+    <select class="cs-select" style="max-width:140px" name="status">
+      <option value="">All Status</option>
+      {% for s in ['open','remediated','accepted'] %}
+      <option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ s | title }}</option>
+      {% endfor %}
+    </select>
+    <button class="cs-btn cs-btn-secondary" type="submit"><i data-lucide="search"></i> Filter</button>
+    <a href="{{ url_for('posture.overview') }}" class="cs-btn cs-btn-secondary">Clear</a>
+  </form>
+</div>
+
+<div class="cs-card p-0">
+  {% if findings %}
+  <div class="cs-table-wrapper">
+    <table class="cs-table">
+      <thead><tr>
+        <th>Finding</th><th>Resource</th><th>Severity</th><th>Score</th><th>Status</th><th>Detected</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+      {% for f in findings %}
+      <tr>
+        <td>
+          <div class="fw-600">{{ f.title }}</div>
+          <div class="text-dim" style="font-size:12px">{{ f.description | truncate(90) }}</div>
+          {% if f.remediation %}<div style="font-size:11px; color:var(--cs-cyan); margin-top:4px">💡 {{ f.remediation | truncate(80) }}</div>{% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('resources.detail', rid=f.resource.id) }}" style="color:var(--cs-text)">{{ f.resource.name }}</a>
+          <div class="text-dim" style="font-size:11px">{{ f.resource.resource_type | replace('_',' ') | title }}</div>
+        </td>
+        <td><span class="cs-badge cs-badge-{{ f.severity }}">{{ f.severity | upper }}</span></td>
+        <td class="fw-600" style="color:{% if f.risk_score >= 8 %}var(--cs-red){% elif f.risk_score >= 6 %}#F97316{% elif f.risk_score >= 4 %}var(--cs-amber){% else %}#22C55E{% endif %}">{{ f.risk_score }}</td>
+        <td><span class="cs-badge cs-badge-{{ f.status }}">{{ f.status }}</span></td>
+        <td class="text-dim" style="font-size:12px">{{ f.detected_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          {% if current_user.is_analyst() and f.status == 'open' %}
+          <div class="d-flex gap-8">
+            <form method="POST" action="{{ url_for('posture.remediate', fid=f.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button class="cs-btn cs-btn-sm cs-btn-primary" title="Mark Remediated">✓ Fix</button>
+            </form>
+            <form method="POST" action="{{ url_for('posture.accept_risk', fid=f.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button class="cs-btn cs-btn-sm cs-btn-secondary" title="Accept Risk">Accept</button>
+            </form>
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="cs-empty">
+    <i data-lucide="shield-check"></i>
+    <div class="cs-empty-title">No findings</div>
+    <div class="cs-empty-text">Run an assessment to check your simulated cloud resources.</div>
+    {% if current_user.is_analyst() %}
+    <form method="POST" action="{{ url_for('posture.run_assessment') }}" class="mt-16">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button class="cs-btn cs-btn-primary"><i data-lucide="scan-search"></i> Run Assessment</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

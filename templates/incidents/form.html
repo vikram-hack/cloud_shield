@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Create Incident{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('incidents.list_incidents') }}">Incidents</a>
+<span class="separator">/</span>
+<span class="current">New Incident</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Open New Incident</h1>
+    <p class="cs-page-subtitle">Initiate formal security incident investigation and forensic workflow</p>
+  </div>
+  <a href="{{ url_for('incidents.list_incidents') }}" class="btn btn-outline">
+    <i data-lucide="arrow-left"></i> Back to Incidents
+  </a>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-header">
+    <h3 class="card-title"><i data-lucide="shield-alert"></i> Incident Details</h3>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('incidents.create') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div class="cs-form-group">
+        <label class="cs-label" for="title">Incident Title *</label>
+        <input type="text" id="title" name="title" class="cs-input" placeholder="e.g. S3 Bucket Sensitive Data Exfiltration Detected" required />
+      </div>
+
+      <div class="grid grid-2" style="gap: 1.25rem;">
+        <div class="cs-form-group">
+          <label class="cs-label" for="severity">Severity Level *</label>
+          <select id="severity" name="severity" class="cs-select" required>
+            <option value="critical">Critical (Immediate containment required)</option>
+            <option value="high" selected>High (Significant threat to cloud assets)</option>
+            <option value="medium">Medium (Potential breach / active probing)</option>
+            <option value="low">Low (Policy violation / minor anomaly)</option>
+          </select>
+        </div>
+
+        <div class="cs-form-group">
+          <label class="cs-label" for="assigned_to">Assign Lead Analyst</label>
+          <select id="assigned_to" name="assigned_to" class="cs-select">
+            <option value="">Unassigned</option>
+            {% for a in analysts %}
+            <option value="{{ a.id }}" {% if current_user.id == a.id %}selected{% endif %}>{{ a.username }} ({{ a.role }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="description">Initial Investigation Summary / Scope</label>
+        <textarea id="description" name="description" class="cs-textarea" rows="5" placeholder="Detail observed indicators of compromise (IOCs), affected resources, initial attack vector, and potential impact..."></textarea>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+        <a href="{{ url_for('incidents.list_incidents') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> Create Incident Case</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

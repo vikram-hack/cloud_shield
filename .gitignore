@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Flask / SQLite local database & instances
+instance/*.db
+instance/cloudshield.db
+.webassets-cache
+
+# Evidence store logs/dumps
+evidence_store/*
+!evidence_store/.gitkeep
+
+# Environments & secrets
+.env
+.env.*
+!.env.example
+
+# IDEs & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

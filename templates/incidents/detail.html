@@ -1,0 +1,332 @@
+{% extends 'base.html' %}
+{% block title %}{{ inc.incident_id }}: {{ inc.title }}{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('incidents.list_incidents') }}">Incidents</a>
+<span class="separator">/</span>
+<span class="current">{{ inc.incident_id }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+      <h1 class="cs-page-title" style="margin-bottom: 0;">{{ inc.incident_id }}: {{ inc.title }}</h1>
+      <span class="badge badge-{{ inc.severity }}">{{ inc.severity | upper }}</span>
+      <span class="badge badge-muted">{{ inc.status | upper }}</span>
+    </div>
+    <p class="cs-page-subtitle">
+      Opened {{ inc.created_at.strftime('%Y-%m-%d %H:%M UTC') }}
+      &bull; Lead: <strong>{{ inc.assigned_analyst.username if inc.assigned_analyst else 'Unassigned' }}</strong>
+    </p>
+  </div>
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    <a href="{{ url_for('reports.incident_report', iid=inc.id) }}" target="_blank" class="btn btn-outline">
+      <i data-lucide="file-text"></i> Forensics Report (PDF)
+    </a>
+    <a href="{{ url_for('evidence.upload') }}?incident_id={{ inc.id }}" class="btn btn-outline">
+      <i data-lucide="upload-cloud"></i> Attach Evidence
+    </a>
+    <a href="{{ url_for('incidents.list_incidents') }}" class="btn btn-outline">
+      <i data-lucide="arrow-left"></i> All Incidents
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-3" style="gap: 1.5rem;">
+  <!-- Left 2 Cols: Case file, Timeline, Evidence, Events -->
+  <div class="col-span-2" style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <!-- Overview & Description -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="clipboard"></i> Case Summary & Impact</h3>
+      </div>
+      <div class="card-body">
+        <div style="color: var(--text-primary); font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">
+          {{ inc.description or 'No initial narrative specified.' }}
+        </div>
+
+        {% if inc.resolution_summary %}
+        <div style="background: rgba(34, 197, 94, 0.1); border-left: 3px solid var(--accent-green); padding: 0.85rem 1rem; border-radius: 4px; margin-top: 1.25rem;">
+          <strong style="color: var(--accent-green); font-size: 0.85rem;">Resolution & Remediation Summary:</strong>
+          <div style="font-size: 0.85rem; color: var(--text-primary); margin-top: 0.25rem; white-space: pre-wrap;">{{ inc.resolution_summary }}</div>
+          {% if inc.resolved_at %}
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">Resolved at: {{ inc.resolved_at.strftime('%Y-%m-%d %H:%M UTC') }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Forensic Evidence Attached -->
+    <div class="card">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title"><i data-lucide="file-check"></i> Forensic Evidence Vault ({{ evidence_items|length }})</h3>
+        <a href="{{ url_for('evidence.upload') }}?incident_id={{ inc.id }}" class="btn btn-primary btn-xs">
+          <i data-lucide="plus"></i> Add Evidence
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="cs-table">
+          <thead>
+            <tr>
+              <th>Evidence ID</th>
+              <th>Filename</th>
+              <th>SHA-256 Hash</th>
+              <th>Integrity</th>
+              <th>Logged By</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if evidence_items %}
+              {% for ev in evidence_items %}
+              <tr>
+                <td><code>{{ ev.evidence_id }}</code></td>
+                <td><span style="font-weight: 500;">{{ ev.original_filename }}</span></td>
+                <td><code style="font-size: 0.75rem;">{{ ev.sha256_hash[:16] }}...</code></td>
+                <td>
+                  <span class="badge badge-low"><i data-lucide="check" style="width:10px;height:10px;"></i> Verified</span>
+                </td>
+                <td>{{ ev.uploader.username if ev.uploader else 'System' }}</td>
+                <td style="text-align: right;">
+                  <a href="{{ url_for('evidence.detail', eid=ev.id) }}" class="btn btn-outline btn-xs">Chain of Custody</a>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                  No evidence files logged for this case yet.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Correlated Security Events -->
+    <div class="card">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title"><i data-lucide="activity"></i> Correlated Events Timeline ({{ events|length }})</h3>
+      </div>
+      <div class="table-responsive">
+        <table class="cs-table">
+          <thead>
+            <tr>
+              <th>Time (UTC)</th>
+              <th>Severity</th>
+              <th>Type / Description</th>
+              <th>Source IP</th>
+              <th style="text-align: right;">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if events %}
+              {% for ev in events %}
+              <tr>
+                <td style="font-size: 0.8rem; font-family: var(--font-mono); white-space: nowrap;">
+                  {{ ev.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                </td>
+                <td><span class="badge badge-{{ ev.severity }}">{{ ev.severity | upper }}</span></td>
+                <td>
+                  <div style="font-weight: 500;">{{ ev.description or ev.summary }}</div>
+                  <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ ev.category }} &bull; {{ ev.event_type }}</div>
+                </td>
+                <td><code>{{ ev.source_ip }}</code></td>
+                <td style="text-align: right;">
+                  <a href="{{ url_for('events.detail', eid=ev.id) }}" class="btn btn-outline btn-xs"><i data-lucide="external-link"></i></a>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                  No events directly attached. Link events from the right panel.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Linked Security Alerts -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="bell"></i> Associated Alerts ({{ alerts|length }})</h3>
+      </div>
+      <div class="table-responsive">
+        <table class="cs-table">
+          <thead>
+            <tr>
+              <th>Alert ID</th>
+              <th>Severity</th>
+              <th>Title</th>
+              <th>Status</th>
+              <th style="text-align: right;">View</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if alerts %}
+              {% for a in alerts %}
+              <tr>
+                <td><code>{{ a.alert_id or a.id }}</code></td>
+                <td><span class="badge badge-{{ a.severity }}">{{ a.severity | upper }}</span></td>
+                <td>{{ a.title }}</td>
+                <td><span class="badge badge-muted">{{ a.status | upper }}</span></td>
+                <td style="text-align: right;">
+                  <a href="{{ url_for('alerts.detail', aid=a.id) }}" class="btn btn-outline btn-xs"><i data-lucide="eye"></i></a>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                  No alerts linked to this incident.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Case Notes & Investigation Log -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="message-square"></i> Case Log & Analyst Notes ({{ notes|length }})</h3>
+      </div>
+      <div class="card-body">
+        <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+          {% if notes %}
+            {% for n in notes %}
+            <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.85rem 1rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <strong style="color: var(--accent-cyan); font-size: 0.85rem;">{{ n.author.username if n.author else 'Analyst' }}</strong>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ n.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</span>
+              </div>
+              <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap;">{{ n.content }}</div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted" style="font-size: 0.85rem;">No notes recorded yet.</p>
+          {% endif %}
+        </div>
+
+        {% if current_user.is_analyst() %}
+        <form method="POST" action="{{ url_for('incidents.add_note', iid=inc.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <label class="cs-label">Add Note to Case History</label>
+          <textarea name="content" class="cs-textarea" rows="3" placeholder="Enter forensic observations, actions taken, or witness interviews..." required style="margin-bottom: 0.75rem;"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="send"></i> Post Note</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Sidebar: Management, Status, Event Linker -->
+  <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <!-- Status & Lifecycle Card -->
+    {% if current_user.is_analyst() %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="sliders"></i> Incident Lifecycle</h3>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('incidents.update_status', iid=inc.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <div class="cs-form-group">
+            <label class="cs-label">Update Status</label>
+            <select name="status" class="cs-select" id="statusSelect" onchange="toggleResolutionBox(this.value)">
+              {% for s in statuses %}
+              <option value="{{ s }}" {% if inc.status == s %}selected{% endif %}>{{ s | title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="cs-form-group" id="resolutionBox" style="{% if inc.status not in ['resolved', 'closed'] %}display: none;{% endif %}">
+            <label class="cs-label">Remediation / Resolution Summary</label>
+            <textarea name="resolution_summary" class="cs-textarea" rows="3" placeholder="Root cause identified, containment measures executed...">{{ inc.resolution_summary or '' }}</textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-sm" style="width: 100%;"><i data-lucide="save"></i> Update Status</button>
+        </form>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
+          <form method="POST" action="{{ url_for('incidents.assign', iid=inc.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <label class="cs-label">Assign Lead Analyst</label>
+            <select name="analyst_id" class="cs-select" style="margin-bottom: 0.5rem;">
+              <option value="">Unassigned</option>
+              {% for a in analysts %}
+              <option value="{{ a.id }}" {% if inc.assigned_to == a.id %}selected{% endif %}>{{ a.username }} ({{ a.role }})</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline btn-sm" style="width: 100%;"><i data-lucide="user-check"></i> Reassign</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Link Additional Security Events -->
+    {% if current_user.is_analyst() and unlinked_events %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="link"></i> Correlate Security Event</h3>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('incidents.link_event', iid=inc.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <div class="cs-form-group">
+            <label class="cs-label">Select Unassigned Event</label>
+            <select name="event_id" class="cs-select" required>
+              {% for ue in unlinked_events %}
+              <option value="{{ ue.id }}">[{{ ue.severity|upper }}] #{{ ue.id }} - {{ ue.event_type }} ({{ ue.source_ip }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-outline btn-sm" style="width: 100%;"><i data-lucide="plus"></i> Link Event</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Link Additional Alerts -->
+    {% if current_user.is_analyst() and unlinked_alerts %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i data-lucide="bell-plus"></i> Correlate Alert</h3>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('incidents.link_alert', iid=inc.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <div class="cs-form-group">
+            <label class="cs-label">Select Unassigned Alert</label>
+            <select name="alert_id" class="cs-select" required>
+              {% for ua in unlinked_alerts %}
+              <option value="{{ ua.id }}">[{{ ua.severity|upper }}] {{ ua.title[:35] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-outline btn-sm" style="width: 100%;"><i data-lucide="plus"></i> Link Alert</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function toggleResolutionBox(val) {
+  const box = document.getElementById('resolutionBox');
+  if (val === 'resolved' || val === 'closed') {
+    box.style.display = 'block';
+  } else {
+    box.style.display = 'none';
+  }
+}
+</script>
+{% endblock %}

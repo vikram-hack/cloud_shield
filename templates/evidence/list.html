@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}Evidence Vault{% endblock %}
+{% block breadcrumb %}<span class="current">Evidence Vault</span>{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Digital Forensics Evidence Vault</h1>
+    <p class="cs-page-subtitle">Cryptographically verified forensic evidence storage with immutable SHA-256 chain of custody tracking</p>
+  </div>
+  {% if current_user.is_analyst() %}
+  <a href="{{ url_for('evidence.upload') }}" class="btn btn-primary">
+    <i data-lucide="upload-cloud"></i> Deposit Evidence
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-body" style="padding: 1rem 1.25rem;">
+    <form method="GET" action="{{ url_for('evidence.list_evidence') }}" class="grid grid-4" style="gap: 1rem; align-items: flex-end;">
+      <div>
+        <label class="cs-label">Associated Incident</label>
+        <select name="incident_id" class="cs-select">
+          <option value="">All Incidents</option>
+          {% for inc in incidents %}
+          <option value="{{ inc.id }}" {% if incident_id == inc.id %}selected{% endif %}>{{ inc.incident_number or inc.incident_id }} - {{ inc.title[:20] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="cs-label">Evidence Type</label>
+        <select name="type" class="cs-select">
+          <option value="">All Types</option>
+          {% for t in allowed_types %}
+          <option value="{{ t }}" {% if ev_type == t %}selected{% endif %}>{{ t | replace('_', ' ') | title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="cs-label">Integrity Status</label>
+        <select name="integrity" class="cs-select">
+          <option value="">All Statuses</option>
+          <option value="verified" {% if integrity == 'verified' %}selected{% endif %}>Verified</option>
+          <option value="tampered" {% if integrity == 'tampered' %}selected{% endif %}>Tampered / Warning</option>
+          <option value="unverified" {% if integrity == 'unverified' %}selected{% endif %}>Unverified</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="submit" class="btn btn-primary" style="flex: 1;"><i data-lucide="filter"></i> Filter</button>
+        <a href="{{ url_for('evidence.list_evidence') }}" class="btn btn-outline"><i data-lucide="rotate-ccw"></i></a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Evidence Table -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i data-lucide="database"></i> Evidence Records ({{ items|length }})
+    </h3>
+  </div>
+  <div class="table-responsive">
+    <table class="cs-table">
+      <thead>
+        <tr>
+          <th>Evidence ID</th>
+          <th>Original File</th>
+          <th>Type</th>
+          <th>SHA-256 Digest</th>
+          <th>Size</th>
+          <th>Integrity Status</th>
+          <th>Collected</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if items %}
+          {% for ev in items %}
+          <tr>
+            <td>
+              <a href="{{ url_for('evidence.detail', eid=ev.id) }}" style="font-weight: 600; color: var(--accent-cyan); font-family: var(--font-mono);">
+                {{ ev.evidence_id }}
+              </a>
+            </td>
+            <td>
+              <div style="font-weight: 500; color: var(--text-primary);">{{ ev.original_filename }}</div>
+              {% if ev.description %}
+              <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ ev.description[:40] }}</div>
+              {% endif %}
+            </td>
+            <td><span class="badge badge-muted">{{ ev.evidence_type | replace('_', ' ') | title }}</span></td>
+            <td>
+              <code style="font-size: 0.75rem;" title="{{ ev.sha256_hash }}">{{ ev.sha256_hash[:16] }}...</code>
+            </td>
+            <td style="font-size: 0.8rem; font-family: var(--font-mono);">
+              {% if ev.file_size > 1048576 %}
+              {{ "%.1f"|format(ev.file_size / 1048576) }} MB
+              {% elif ev.file_size > 1024 %}
+              {{ "%.1f"|format(ev.file_size / 1024) }} KB
+              {% else %}
+              {{ ev.file_size }} B
+              {% endif %}
+            </td>
+            <td>
+              {% if ev.integrity_status == 'verified' %}
+              <span class="badge badge-low"><i data-lucide="check" style="width:10px;height:10px;"></i> VERIFIED</span>
+              {% elif ev.integrity_status == 'tampered' %}
+              <span class="badge badge-critical"><i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> TAMPERED</span>
+              {% else %}
+              <span class="badge badge-warning">UNVERIFIED</span>
+              {% endif %}
+            </td>
+            <td style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">
+              {{ ev.collection_timestamp.strftime('%Y-%m-%d %H:%M') }}
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+              <div style="display: inline-flex; gap: 0.35rem;">
+                <a href="{{ url_for('evidence.detail', eid=ev.id) }}" class="btn btn-outline btn-xs" title="Chain of Custody">
+                  <i data-lucide="shield-check"></i>
+                </a>
+                {% if current_user.is_analyst() %}
+                <a href="{{ url_for('evidence.download', eid=ev.id) }}" class="btn btn-outline btn-xs" title="Download">
+                  <i data-lucide="download"></i>
+                </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 3rem 1rem;">
+              <i data-lucide="file-question" style="width: 36px; height: 36px; stroke: var(--text-secondary); margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto;"></i>
+              No evidence artifacts found matching criteria.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

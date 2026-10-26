@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Security Events{% endblock %}
+{% block breadcrumb %}<span class="current">Security Events</span>{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Security Events</h1>
+    <div class="cs-page-subtitle">All events recorded by CloudShield detection engine — All timestamps UTC</div>
+  </div>
+  <div class="cs-page-actions">
+    <a href="{{ url_for('reports.events_report') }}" class="cs-btn cs-btn-secondary"><i data-lucide="file-text"></i> PDF Report</a>
+  </div>
+</div>
+
+<div class="cs-card mb-16">
+  <form method="GET" class="cs-filter-bar" style="flex-wrap:wrap">
+    <input class="cs-input" style="max-width:220px" name="q" value="{{ q }}" placeholder="Search description…" />
+    <select class="cs-select" style="max-width:140px" name="severity">
+      <option value="">All Severity</option>
+      {% for s in ['critical','high','medium','low','info'] %}
+      <option value="{{ s }}" {% if s == severity %}selected{% endif %}>{{ s | title }}</option>
+      {% endfor %}
+    </select>
+    <select class="cs-select" style="max-width:180px" name="category">
+      <option value="">All Categories</option>
+      {% for c in categories %}<option value="{{ c }}" {% if c == category %}selected{% endif %}>{{ c | replace('_',' ') | title }}</option>{% endfor %}
+    </select>
+    <input class="cs-input" style="max-width:140px" name="source_ip" value="{{ source_ip }}" placeholder="Source IP" />
+    <input class="cs-input" style="max-width:140px" type="date" name="date_from" value="{{ date_from }}" />
+    <input class="cs-input" style="max-width:140px" type="date" name="date_to" value="{{ date_to }}" />
+    <button class="cs-btn cs-btn-secondary" type="submit"><i data-lucide="search"></i> Filter</button>
+    <a href="{{ url_for('events.list_events') }}" class="cs-btn cs-btn-secondary">Clear</a>
+  </form>
+</div>
+
+<div class="cs-card p-0">
+  {% if events %}
+  <div class="cs-table-wrapper">
+    <table class="cs-table">
+      <thead><tr>
+        <th>Timestamp (UTC)</th><th>Category</th><th>Severity</th><th>Source IP</th><th>Rule</th><th>Description</th><th>Demo</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for ev in events %}
+      <tr>
+        <td class="cs-mono text-dim" style="font-size:11px">{{ ev.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        <td><span class="cs-badge cs-badge-{{ ev.severity }}" style="font-size:10px">{{ ev.category | replace('_',' ') | title }}</span></td>
+        <td><span class="cs-badge cs-badge-{{ ev.severity }}">{{ ev.severity | upper }}</span></td>
+        <td class="cs-mono" style="font-size:12px">{{ ev.source_ip or '—' }}</td>
+        <td class="cs-mono text-dim" style="font-size:11px">{{ ev.detection_rule or '—' }}</td>
+        <td class="truncate" style="max-width:280px" title="{{ ev.description }}">{{ ev.description | truncate(70) }}</td>
+        <td>{% if ev.is_demo %}<span class="cs-badge cs-badge-demo">DEMO</span>{% endif %}</td>
+        <td><a href="{{ url_for('events.detail', eid=ev.id) }}" class="cs-btn cs-btn-sm cs-btn-secondary"><i data-lucide="eye"></i></a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <div class="cs-pagination" style="padding:16px">
+    {% if pagination.has_prev %}<a class="cs-page-btn" href="?page={{ pagination.prev_num }}&q={{ q }}&severity={{ severity }}&category={{ category }}&source_ip={{ source_ip }}">&laquo;</a>{% endif %}
+    {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+      {% if p %}<a class="cs-page-btn {% if p == pagination.page %}active{% endif %}" href="?page={{ p }}&q={{ q }}&severity={{ severity }}&category={{ category }}&source_ip={{ source_ip }}">{{ p }}</a>
+      {% else %}<span class="cs-page-btn disabled">…</span>{% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}<a class="cs-page-btn" href="?page={{ pagination.next_num }}&q={{ q }}&severity={{ severity }}&category={{ category }}&source_ip={{ source_ip }}">&raquo;</a>{% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="cs-empty"><i data-lucide="activity"></i><div class="cs-empty-title">No events found</div><div class="cs-empty-text">Adjust your filters or wait for detection events to appear.</div></div>
+  {% endif %}
+</div>
+{% endblock %}

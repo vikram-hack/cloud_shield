@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}404 Not Found{% endblock %}
+{% block breadcrumb %}<span class="current">Page Not Found</span>{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 4rem auto; text-align: center;">
+  <div style="width: 80px; height: 80px; border-radius: 50%; background: rgba(6, 182, 212, 0.1); border: 2px solid var(--accent-cyan); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+    <i data-lucide="help-circle" style="width: 40px; height: 40px; stroke: var(--accent-cyan);"></i>
+  </div>
+  <h1 style="font-size: 2.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">404 Not Found</h1>
+  <p style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+    The requested security artifact, incident case, or endpoint does not exist or has been archived.
+  </p>
+  <a href="{{ url_for('dashboard.overview') }}" class="btn btn-primary">
+    <i data-lucide="home"></i> Return to SOC Overview
+  </a>
+</div>
+{% endblock %}

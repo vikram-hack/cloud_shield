@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}Digital Forensics Investigation{% endblock %}
+{% block breadcrumb %}<span class="current">Forensic Timeline</span>{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Digital Forensics & Timeline Reconstruction</h1>
+    <p class="cs-page-subtitle">Multi-source log correlation, sequence analysis, and attack chain hypothesis testing</p>
+  </div>
+  <div style="display: flex; gap: 0.5rem;">
+    <a href="{{ url_for('reports.overview') }}" class="btn btn-primary">
+      <i data-lucide="file-text"></i> Generate Report
+    </a>
+  </div>
+</div>
+
+<!-- Forensics Filter Bar -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-body" style="padding: 1.25rem;">
+    <form method="GET" action="{{ url_for('forensics.overview') }}" class="grid grid-4" style="gap: 1rem; align-items: flex-end;">
+      <div>
+        <label class="cs-label">Associated Incident</label>
+        <select name="incident_id" class="cs-select">
+          <option value="">All Incidents</option>
+          {% for inc in incidents %}
+          <option value="{{ inc.id }}" {% if incident_id == inc.id %}selected{% endif %}>{{ inc.incident_number or inc.incident_id }} - {{ inc.title[:20] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="cs-label">Filter Source IP</label>
+        <input type="text" name="source_ip" value="{{ source_ip or '' }}" class="cs-input" placeholder="e.g. 198.51.100.44" />
+      </div>
+
+      <div>
+        <label class="cs-label">Target / Username</label>
+        <input type="text" name="username" value="{{ username or '' }}" class="cs-input" placeholder="e.g. admin or root" />
+      </div>
+
+      <div>
+        <label class="cs-label">Category</label>
+        <select name="category" class="cs-select">
+          <option value="">All Categories</option>
+          {% for c in categories %}
+          <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c | replace('_', ' ') | title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="cs-label">Date From</label>
+        <input type="date" name="date_from" value="{{ date_from or '' }}" class="cs-input" />
+      </div>
+
+      <div>
+        <label class="cs-label">Date To</label>
+        <input type="date" name="date_to" value="{{ date_to or '' }}" class="cs-input" />
+      </div>
+
+      <div class="col-span-2" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+        <button type="submit" class="btn btn-primary"><i data-lucide="search"></i> Reconstruct Timeline</button>
+        <a href="{{ url_for('forensics.overview') }}" class="btn btn-outline"><i data-lucide="rotate-ccw"></i> Reset</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Correlation & Attack Chain Hypotheses -->
+{% if correlations %}
+<div class="card" style="margin-bottom: 1.5rem; border: 1px solid rgba(255, 51, 85, 0.4); background: linear-gradient(180deg, rgba(255, 51, 85, 0.08) 0%, rgba(10, 22, 40, 0.95) 100%); box-shadow: 0 0 20px rgba(255, 51, 85, 0.08);">
+  <div class="card-header" style="border-bottom: 1px solid rgba(255, 51, 85, 0.25); background: rgba(255, 51, 85, 0.05);">
+    <h3 class="card-title" style="color: #FF5577; display: flex; align-items: center; gap: 0.5rem; text-shadow: 0 0 8px rgba(255,51,85,0.4);">
+      <i data-lucide="alert-octagon"></i> Automated Attack Correlation & Anomalies ({{ correlations|length }})
+    </h3>
+  </div>
+  <div class="card-body">
+    <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+      {% for corr in correlations %}
+      <div style="background: rgba(10, 22, 40, 0.9); border: 1px solid rgba(255, 51, 85, 0.25); border-left: 3px solid #FF3355; border-radius: 6px; padding: 0.85rem 1.1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+          <strong style="color: #FF6B8B; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+            <i data-lucide="crosshair" style="width:15px;height:15px;stroke-width:2.2;"></i> {{ corr.type | replace('_', ' ') | title }} &bull; Source IP: <code style="color: #00E5FF; background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.3); font-size: 0.85rem;">{{ corr.ip }}</code>
+          </strong>
+          <span class="badge badge-high" style="font-weight: 700;">{{ corr.severity | upper }}</span>
+        </div>
+        <p style="margin: 0.35rem 0 0.5rem 0; font-size: 0.9rem; color: #FFFFFF; line-height: 1.5;">
+          {{ corr.description }}
+        </p>
+        <div style="font-size: 0.82rem; color: #B8D4EE; line-height: 1.4;">
+          <strong style="color: #FFB800;">Forensic Caution:</strong> {{ corr.uncertainty }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Chronological Forensic Timeline -->
+<div class="card">
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <h3 class="card-title">
+      <i data-lucide="clock"></i> Chronological Timeline Records ({{ timeline|length }})
+    </h3>
+    <span class="text-muted" style="font-size: 0.8rem;">Ordered chronologically for sequence analysis</span>
+  </div>
+
+  <div class="card-body" style="padding: 1.25rem;">
+    {% if timeline %}
+    <div class="forensic-timeline" style="position: relative; padding-left: 2rem; border-left: 2px solid var(--border-color); margin-left: 1rem;">
+      {% for ev in timeline %}
+      <div class="timeline-item" style="position: relative; margin-bottom: 1.5rem;">
+        <!-- Timeline Marker -->
+        <div style="position: absolute; left: -2.45rem; top: 0.25rem; width: 14px; height: 14px; border-radius: 50%; background: var(--bg-primary); border: 2px solid {% if ev.severity == 'critical' %}var(--accent-red){% elif ev.severity == 'high' %}var(--accent-orange){% elif ev.severity == 'medium' %}var(--accent-yellow){% else %}var(--accent-cyan){% endif %};"></div>
+
+        <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <code style="color: var(--accent-cyan); font-weight: 600;">{{ ev.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }}</code>
+              <span class="badge badge-{{ ev.severity }}">{{ ev.severity | upper }}</span>
+              <span class="badge badge-muted">{{ ev.category }}</span>
+              {% if ev.mitre_technique %}
+              <span class="badge badge-muted" style="color: var(--accent-orange); border-color: rgba(249, 115, 22, 0.3);">{{ ev.mitre_technique }}</span>
+              {% endif %}
+            </div>
+            <a href="{{ url_for('events.detail', eid=ev.id) }}" class="btn btn-outline btn-xs">Event #{{ ev.id }} &rarr;</a>
+          </div>
+
+          <div style="font-weight: 500; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.5rem;">
+            {{ ev.description or ev.summary }}
+          </div>
+
+          <div class="grid grid-3" style="gap: 0.75rem; font-size: 0.8rem; background: var(--bg-secondary); padding: 0.5rem 0.75rem; border-radius: 4px;">
+            <div><strong>Source IP:</strong> <code>{{ ev.source_ip }}</code></div>
+            <div><strong>Event Type:</strong> <code>{{ ev.event_type }}</code></div>
+            <div><strong>User/Identity:</strong> {{ ev.username or 'N/A' }}</div>
+          </div>
+
+          {% if ev.payload or ev.raw_log %}
+          <details style="margin-top: 0.5rem;">
+            <summary style="font-size: 0.75rem; color: var(--text-secondary); cursor: pointer;">Show Captured Payload / Log Entry</summary>
+            <div class="code-block" style="margin-top: 0.35rem; max-height: 140px; overflow-y: auto; font-size: 0.75rem;">
+              <pre><code>{{ ev.payload or ev.raw_log }}</code></pre>
+            </div>
+          </details>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; color: var(--text-secondary); padding: 3rem 1rem;">
+      <i data-lucide="calendar" style="width: 36px; height: 36px; stroke: var(--text-secondary); margin-bottom: 0.5rem; display: block; margin-left: auto; margin-right: auto;"></i>
+      No events found matching the forensic query.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
