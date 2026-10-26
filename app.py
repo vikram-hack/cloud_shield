@@ -135,6 +135,16 @@ def _ensure_default_users():
         db.session.add(analyst)
         print('[INIT] Demo analyst created: analyst_demo / Demo@Analyst2024!')
 
+    if not User.query.filter_by(username='viewer_demo').first():
+        viewer = User(
+            username='viewer_demo',
+            email='viewer@cloudshield.local',
+            role='viewer',
+        )
+        viewer.set_password('Demo@Viewer2024!')
+        db.session.add(viewer)
+        print('[INIT] Demo viewer created: viewer_demo / Demo@Viewer2024!')
+
     db.session.commit()
 
     print('[INIT] CHANGE THIS PASSWORD IMMEDIATELY after first login.')
