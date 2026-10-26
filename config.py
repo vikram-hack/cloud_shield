@@ -14,7 +14,9 @@ _local_db = "sqlite:///" + os.path.join(basedir, "instance", "cloudshield.db")
 
 class Config:
     # Security
-    SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32)
+    # IMPORTANT: Set SECRET_KEY as an environment variable in production / Vercel.
+    # os.urandom() changes on every cold start → invalidates CSRF tokens.
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'cs-dev-fallback-key-change-in-production-32x!'
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = 3600
 
