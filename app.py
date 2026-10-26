@@ -47,7 +47,7 @@ def create_app(config_name='default'):
 
     with app.app_context():
         db.create_all()
-        _ensure_admin()
+        _ensure_default_users()
 
     # ─── Blueprints ───────────────────────────────────────────────────────────
     from routes.auth import auth_bp
@@ -113,19 +113,30 @@ def create_app(config_name='default'):
     return app
 
 
-def _ensure_admin():
-    """Create the default admin account on first run."""
-    if User.query.filter_by(role='admin').first():
-        return
-    admin = User(
-        username='admin',
-        email='admin@cloudshield.local',
-        role='admin',
-    )
-    admin.set_password('CloudShield@Admin2024!')
-    db.session.add(admin)
+def _ensure_default_users():
+    """Create default admin and analyst accounts on first run."""
+    if not User.query.filter_by(username='admin').first():
+        admin = User(
+            username='admin',
+            email='admin@cloudshield.local',
+            role='admin',
+        )
+        admin.set_password('CloudShield@Admin2024!')
+        db.session.add(admin)
+        print('[INIT] Default admin created: admin / CloudShield@Admin2024!')
+
+    if not User.query.filter_by(username='analyst_demo').first():
+        analyst = User(
+            username='analyst_demo',
+            email='analyst@cloudshield.local',
+            role='analyst',
+        )
+        analyst.set_password('Demo@Analyst2024!')
+        db.session.add(analyst)
+        print('[INIT] Demo analyst created: analyst_demo / Demo@Analyst2024!')
+
     db.session.commit()
-    print('[INIT] Default admin created: admin / CloudShield@Admin2024!')
+
     print('[INIT] CHANGE THIS PASSWORD IMMEDIATELY after first login.')
 
 
