@@ -6,6 +6,11 @@ from datetime import timedelta
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+# Detect Vercel serverless environment
+_ON_VERCEL = bool(os.environ.get("VERCEL"))
+_tmp_db   = "sqlite:////tmp/cloudshield.db"
+_local_db = "sqlite:///" + os.path.join(basedir, "instance", "cloudshield.db")
+
 
 class Config:
     # Security
@@ -13,9 +18,11 @@ class Config:
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = 3600
 
-    # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'instance', 'cloudshield.db')
+    # Database – fall back to /tmp on Vercel (read-only root filesystem)
+    SQLALCHEMY_DATABASE_URI = (
+        os.environ.get('DATABASE_URL') or
+        (_tmp_db if _ON_VERCEL else _local_db)
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
@@ -25,10 +32,14 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
-    SESSION_COOKIE_SECURE = False  # Set True in production with HTTPS
+    SESSION_COOKIE_SECURE = _ON_VERCEL  # True on Vercel (HTTPS), False locally
 
-    # Evidence store
-    EVIDENCE_STORE_PATH = os.path.join(basedir, 'evidence_store')
+    # Evidence store – writable /tmp directory on Vercel
+    EVIDENCE_STORE_PATH = (
+        '/tmp/evidence_store'
+        if _ON_VERCEL else
+        os.path.join(basedir, 'evidence_store')
+    )
 
     # Application settings
     APP_NAME = 'CloudShield'

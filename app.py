@@ -28,8 +28,10 @@ def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
-    # Ensure instance and evidence directories exist
-    os.makedirs(os.path.join(app.root_path, 'instance'), exist_ok=True)
+    # Ensure writable directories exist
+    # On Vercel the root FS is read-only; evidence_store is already /tmp by config.
+    if not os.environ.get("VERCEL"):
+        os.makedirs(os.path.join(app.root_path, 'instance'), exist_ok=True)
     os.makedirs(app.config['EVIDENCE_STORE_PATH'], exist_ok=True)
 
     db.init_app(app)
