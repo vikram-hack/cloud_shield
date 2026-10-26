@@ -48,6 +48,7 @@ def create_app(config_name='default'):
     with app.app_context():
         db.create_all()
         _ensure_default_users()
+        _ensure_demo_data(app)
 
     # ─── Blueprints ───────────────────────────────────────────────────────────
     from routes.auth import auth_bp
@@ -148,6 +149,20 @@ def _ensure_default_users():
     db.session.commit()
 
     print('[INIT] CHANGE THIS PASSWORD IMMEDIATELY after first login.')
+
+
+def _ensure_demo_data(app):
+    """Seed all demo data (resources, events, alerts, incidents, evidence, rules)
+    on first run / Vercel cold start. Idempotent — checks for existing demo records first."""
+    from models import CloudResource
+    if CloudResource.query.filter_by(is_demo=True).first():
+        return  # already seeded
+    try:
+        from modules.demo_data import seed_demo_data
+        seed_demo_data(app)
+        print('[INIT] Demo data seeded successfully.')
+    except Exception as e:
+        print(f'[INIT] Warning: demo data seeding failed: {e}')
 
 
 # ─── Permission Decorators ────────────────────────────────────────────────────
