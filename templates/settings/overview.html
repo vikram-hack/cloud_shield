@@ -51,13 +51,16 @@
             </td>
             <td>
               {% if u.id != current_user.id %}
-              <form method="POST" action="{{ url_for('settings.change_role', uid=u.id) }}" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+              <form method="POST" action="{{ url_for('settings.change_role', uid=u.id) }}" style="display: inline-flex; align-items: center; gap: 0.35rem;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                <select name="role" class="cs-select" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; width: auto;" onchange="this.form.submit()">
+                <select name="role" class="cs-select" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; width: auto;" title="Change role">
                   <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
                   <option value="analyst" {% if u.role == 'analyst' %}selected{% endif %}>Analyst</option>
                   <option value="viewer" {% if u.role == 'viewer' %}selected{% endif %}>Viewer</option>
                 </select>
+                <button type="submit" class="btn btn-outline btn-xs" title="Apply Role Change" style="padding: 2px 6px;">
+                  <i data-lucide="check" style="width: 12px; height: 12px;"></i>
+                </button>
               </form>
               {% else %}
               <span class="badge badge-primary">{{ u.role | upper }}</span>
@@ -74,19 +77,20 @@
               {{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else 'Never' }}
             </td>
             <td style="text-align: right; white-space: nowrap;">
+              <a href="{{ url_for('settings.edit_user', uid=u.id) }}" class="btn btn-outline btn-xs" title="Alter user account, email, role, or credentials" style="margin-right: 0.25rem;">
+                <i data-lucide="user-cog" style="width: 12px; height: 12px;"></i> Alter
+              </a>
               {% if u.id != current_user.id %}
               <form method="POST" action="{{ url_for('settings.toggle_lock', uid=u.id) }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <button type="submit" class="btn btn-outline btn-xs" title="{{ 'Unlock' if u.is_locked else 'Lock' }} account">
                   {% if u.is_locked %}
-                  <i data-lucide="unlock"></i> Unlock
+                  <i data-lucide="unlock" style="width: 12px; height: 12px;"></i> Unlock
                   {% else %}
-                  <i data-lucide="lock"></i> Lock
+                  <i data-lucide="lock" style="width: 12px; height: 12px;"></i> Lock
                   {% endif %}
                 </button>
               </form>
-              {% else %}
-              <span class="text-muted" style="font-size: 0.75rem;">Self</span>
               {% endif %}
             </td>
           </tr>

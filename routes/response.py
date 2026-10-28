@@ -24,9 +24,8 @@ def overview():
     incidents = Incident.query.filter(Incident.status.notin_(['resolved', 'closed'])).all()
     test_users = User.query.filter_by(is_demo=True).all()
     sim_resources = CloudResource.query.filter(
-        CloudResource.status.in_(['active', 'stopped']),
-        CloudResource.is_demo == True
-    ).all()
+        CloudResource.status.in_(['active', 'stopped'])
+    ).order_by(CloudResource.name.asc()).all()
     return render_template('response/overview.html',
                            actions=actions, incidents=incidents,
                            test_users=test_users, sim_resources=sim_resources,
@@ -64,19 +63,19 @@ def execute():
             result_detail = f'Demo account "{user.username}" locked for 30 minutes.'
 
         elif action_type == 'isolate_resource':
-            res = CloudResource.query.filter_by(resource_id=target_id, is_demo=True).first()
+            res = CloudResource.query.filter_by(resource_id=target_id).first()
             if not res:
-                flash('Resource not found or not a demo resource.', 'danger')
+                flash('Target cloud resource not found.', 'danger')
                 return redirect(url_for('response.overview'))
             res.status = 'isolated'
             db.session.commit()
             result_detail = f'Simulated resource "{res.name}" marked as isolated.'
 
         elif action_type == 'restrict_bucket':
-            res = CloudResource.query.filter_by(resource_id=target_id, is_demo=True,
+            res = CloudResource.query.filter_by(resource_id=target_id,
                                                 resource_type='bucket').first()
             if not res:
-                flash('Bucket not found or not a demo resource.', 'danger')
+                flash('Bucket resource not found.', 'danger')
                 return redirect(url_for('response.overview'))
             res.is_public = False
             db.session.commit()
@@ -137,14 +136,14 @@ def reverse_action(rid):
                 result_detail = f'Demo account "{user.username}" unlocked.'
 
         elif ra.action_type in ('isolate_resource',):
-            res = CloudResource.query.filter_by(resource_id=ra.target_id, is_demo=True).first()
+            res = CloudResource.query.filter_by(resource_id=ra.target_id).first()
             if res:
                 res.status = 'active'
                 db.session.commit()
                 result_detail = f'Resource "{res.name}" restored to active.'
 
         elif ra.action_type == 'restrict_bucket':
-            res = CloudResource.query.filter_by(resource_id=ra.target_id, is_demo=True).first()
+            res = CloudResource.query.filter_by(resource_id=ra.target_id).first()
             if res:
                 res.is_public = True
                 db.session.commit()

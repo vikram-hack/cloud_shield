@@ -14,6 +14,7 @@ env/
 # Flask / SQLite local database & instances
 instance/*.db
 instance/cloudshield.db
+instance/test_evidence/
 .webassets-cache
 
 # Evidence store logs/dumps
@@ -32,3 +33,5 @@ evidence_store/*
 *.swo
 .DS_Store
 Thumbs.db
+
+.vercel

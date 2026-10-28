@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Alter User Account & Role{% endblock %}
+{% block breadcrumb %}
+<a href="{{ url_for('settings.overview') }}">Settings</a>
+<span class="separator">/</span>
+<span class="current">Alter User</span>
+{% endblock %}
+
+{% block content %}
+<div class="cs-page-header">
+  <div>
+    <h1 class="cs-page-title">Alter User Account & Role</h1>
+    <p class="cs-page-subtitle">Modify RBAC privileges, credentials, email address, and security access state</p>
+  </div>
+  <a href="{{ url_for('settings.overview') }}" class="btn btn-outline">
+    <i data-lucide="arrow-left"></i> Back to Settings
+  </a>
+</div>
+
+<div class="card" style="max-width: 620px; margin: 0 auto;">
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <h3 class="card-title"><i data-lucide="user-cog"></i> Account Configuration: {{ user.username }}</h3>
+    {% if user.id == current_user.id %}
+    <span class="badge badge-primary">CURRENT USER</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('settings.edit_user', uid=user.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="username">Username *</label>
+        <input type="text" id="username" name="username" class="cs-input" value="{{ user.username }}" required />
+      </div>
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="email">Email Address * (must be valid format)</label>
+        <input type="email" id="email" name="email" class="cs-input" value="{{ user.email }}" required />
+        <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+          Format: analyst@domain.com. Verified against duplicate registrations.
+        </span>
+      </div>
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="role">Assigned RBAC Role *</label>
+        <select id="role" name="role" class="cs-select" required {% if user.id == current_user.id %}disabled{% endif %}>
+          <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrator (Full operational control)</option>
+          <option value="analyst" {% if user.role == 'analyst' %}selected{% endif %}>Security Analyst (Triage, alerts, cases, forensics)</option>
+          <option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>Viewer (Read-only observation)</option>
+        </select>
+        {% if user.id == current_user.id %}
+        <input type="hidden" name="role" value="admin" />
+        <span style="font-size: 0.75rem; color: var(--accent-amber); margin-top: 4px; display: block;">
+          Administrator cannot demote own role.
+        </span>
+        {% endif %}
+      </div>
+
+      <div class="cs-form-group">
+        <label class="cs-label" for="password">Reset Password (leave blank to keep current)</label>
+        <input type="password" id="password" name="password" class="cs-input" placeholder="Enter new password if altering credentials..." autocomplete="new-password" />
+        <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+          Security Policy: Minimum 10 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special symbol (!@#$%^&*).
+        </span>
+      </div>
+
+      {% if user.id != current_user.id %}
+      <div class="cs-form-group" style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.02); border-radius: 6px; border: 1px solid var(--border-color);">
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin: 0; font-size: 0.85rem; color: var(--text-primary);">
+          <input type="checkbox" name="is_locked" value="1" {% if user.is_locked %}checked{% endif %} />
+          <span><strong>Lock Account Access</strong> (blocks authentication immediately)</span>
+        </label>
+      </div>
+      {% endif %}
+
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+        <a href="{{ url_for('settings.overview') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Save Account & Role</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

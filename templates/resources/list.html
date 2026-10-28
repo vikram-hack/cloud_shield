@@ -5,8 +5,8 @@
 {% block content %}
 <div class="cs-page-header">
   <div>
-    <h1 class="cs-page-title">Cloud Resources</h1>
-    <div class="cs-page-subtitle">Simulated cloud infrastructure — LOCAL ENVIRONMENT ONLY</div>
+    <h1 class="cs-page-title">Cloud Resources ({{ resources|length }})</h1>
+    <div class="cs-page-subtitle">Simulated cloud infrastructure — {{ resources|length }} active cloud assets</div>
   </div>
   {% if current_user.is_analyst() %}
   <div class="cs-page-actions">

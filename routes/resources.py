@@ -80,6 +80,8 @@ def create():
             is_public=is_public, encryption_enabled=encryption,
             logging_enabled=logging_e, config_json=json.dumps(config_data),
             created_by=current_user.id,
+            risk_score=0.0,
+            is_demo=True,
         )
         db.session.add(res)
         db.session.flush()
@@ -88,7 +90,9 @@ def create():
         for f in new_findings:
             db.session.add(f)
         if new_findings:
-            res.risk_score = max(f.risk_score for f in new_findings)
+            res.risk_score = round(max(f.risk_score for f in new_findings), 2)
+        else:
+            res.risk_score = 0.0
         db.session.commit()
 
         log_action('resource_created', target_type='cloud_resource', target_id=res.resource_id,

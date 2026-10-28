@@ -88,7 +88,10 @@ def overview():
         'high': CloudResource.query.filter(CloudResource.risk_score >= 6.0, CloudResource.risk_score < 8.0, CloudResource.status != 'deleted').count(),
         'medium': CloudResource.query.filter(CloudResource.risk_score >= 4.0, CloudResource.risk_score < 6.0, CloudResource.status != 'deleted').count(),
         'low': CloudResource.query.filter(CloudResource.risk_score > 0, CloudResource.risk_score < 4.0, CloudResource.status != 'deleted').count(),
-        'clean': CloudResource.query.filter(CloudResource.risk_score == 0, CloudResource.status != 'deleted').count(),
+        'clean': CloudResource.query.filter(
+            (CloudResource.risk_score == 0) | (CloudResource.risk_score == None) | (CloudResource.risk_score <= 0.0),
+            CloudResource.status != 'deleted'
+        ).count(),
     }
 
     # Incident status distribution

@@ -26,25 +26,31 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div class="cs-form-group">
         <label class="cs-label" for="username">Username *</label>
-        <input type="text" id="username" name="username" class="cs-input" placeholder="e.g. jsmith" required />
+        <input type="text" id="username" name="username" class="cs-input" placeholder="e.g. jsmith" value="{{ username or '' }}" required />
       </div>
 
       <div class="cs-form-group">
         <label class="cs-label" for="email">Email Address *</label>
-        <input type="email" id="email" name="email" class="cs-input" placeholder="e.g. jsmith@soc.cloudshield.local" required />
+        <input type="email" id="email" name="email" class="cs-input" placeholder="e.g. jsmith@soc.cloudshield.local" value="{{ email or '' }}" required />
+        <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+          Must be a valid email format (e.g. name@domain.com) and unique across the SOC platform.
+        </span>
       </div>
 
       <div class="cs-form-group">
-        <label class="cs-label" for="password">Initial Password * (minimum 12 characters)</label>
-        <input type="password" id="password" name="password" class="cs-input" placeholder="At least 12 characters..." required />
+        <label class="cs-label" for="password">Initial Password *</label>
+        <input type="password" id="password" name="password" class="cs-input" placeholder="Min 10 characters with uppercase, lowercase, number & symbol..." required autocomplete="new-password" />
+        <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">
+          <strong style="color: var(--accent-cyan);">Password Policy:</strong> Minimum 10 characters, at least 1 uppercase (capital), 1 lowercase, 1 number, and 1 special symbol (!@#$%^&*).
+        </span>
       </div>
 
       <div class="cs-form-group">
         <label class="cs-label" for="role">Assigned RBAC Role *</label>
         <select id="role" name="role" class="cs-select" required>
-          <option value="viewer">Viewer (Read-only observation)</option>
-          <option value="analyst" selected>Security Analyst (Triage, alerts, cases, forensics)</option>
-          <option value="admin">Administrator (Full operational control)</option>
+          <option value="viewer" {% if role == 'viewer' %}selected{% endif %}>Viewer (Read-only observation)</option>
+          <option value="analyst" {% if not role or role == 'analyst' %}selected{% endif %}>Security Analyst (Triage, alerts, cases, forensics)</option>
+          <option value="admin" {% if role == 'admin' %}selected{% endif %}>Administrator (Full operational control)</option>
         </select>
       </div>
 
